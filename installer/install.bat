@@ -33,7 +33,14 @@ if not exist "%LE%backup\GTAIV.EFLC.FusionFix.asi" (
   copy /Y "%PLUG%\GTAIV.EFLC.FusionFix.ini" "%LE%backup\" >nul || goto erro
   echo Backup do FusionFix original salvo em LibertyEdge\backup\
 )
+if not exist "%LE%backup\menus\common\frontend_menus.xml" (
+  mkdir "%LE%backup\menus\common" "%LE%backup\menus\TBoGT" "%LE%backup\menus\TLAD" 2>nul
+  copy /Y "%GAME%\update\common\data\frontend_menus.xml" "%LE%backup\menus\common\" >nul || goto erro
+  copy /Y "%GAME%\update\TBoGT\common\data\frontend_menus.xml" "%LE%backup\menus\TBoGT\" >nul || goto erro
+  copy /Y "%GAME%\update\TLAD\common\data\frontend_menus.xml" "%LE%backup\menus\TLAD\" >nul || goto erro
+)
 copy /Y "%LE%files\plugins\GTAIV.EFLC.FusionFix.asi" "%PLUG%\" >nul || goto erro
+xcopy "%LE%files\update\*" "%GAME%\update\" /E /Y /I /Q /R >nul || goto erro
 findstr /B /C:"[LIBERTYEDGE]" "%PLUG%\GTAIV.EFLC.FusionFix.ini" >nul
 if errorlevel 1 (
   >>"%PLUG%\GTAIV.EFLC.FusionFix.ini" echo.
@@ -41,7 +48,7 @@ if errorlevel 1 (
 )
 echo.
 echo OK: Liberty Edge instalado.
-echo No jogo, deixe Anti-aliasing = SMAA. Ajustes em plugins\GTAIV.EFLC.FusionFix.ini, secao [LIBERTYEDGE].
+echo No jogo: Graficos ^> Anti-aliasing ^> SMAA+. Ajustes finos em plugins\GTAIV.EFLC.FusionFix.ini, secao [LIBERTYEDGE].
 pause
 exit /b 0
 :erro

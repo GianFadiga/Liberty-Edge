@@ -10,7 +10,9 @@ Melhorias de anti-serrilhado para **GTA IV: The Complete Edition** em 1080p, con
 ## O que tem
 
 ### SMAA+ (pronto)
-Substitui o SMAA do FusionFix quando o menu do jogo está em **Anti-aliasing = SMAA**.
+Novas opções no menu do jogo, em **Gráficos → Anti-aliasing**: `Off / FXAA / SMAA / SMAA+ / SMAA+ Debug`.
+Dá para alternar com o jogo rodando e comparar na hora. `SMAA+ Debug` mostra a máscara de bordas
+(vermelho/verde = bordas tratadas, azul = bordas de profundidade).
 
 | | SMAA do FusionFix | SMAA+ |
 |---|---|---|
@@ -21,11 +23,17 @@ Substitui o SMAA do FusionFix quando o menu do jogo está em **Anti-aliasing = S
 | Busca ao longo da borda | 16 / 8 diagonal | 32 / 16 diagonal |
 
 Roda antes do HUD (radar, textos e menus não são afetados) e custa praticamente nada.
-Se o shader do SMAA+ não compilar, o FusionFix volta sozinho para o SMAA original e o motivo
+Se o shader do SMAA+ não compilar, o jogo usa o SMAA original, o rodapé avisa e o motivo
 fica em `LibertyEdge.log`, na pasta do jogo.
 
-### Supersampling (em desenvolvimento)
-Renderizar a cena acima de 1080p e reduzir antes do HUD. Ainda é uma prova de conceito.
+### Supersampling / Downsample (experimental)
+Renderiza o jogo acima da resolução do monitor (ex.: 3840×2160) e reduz para a tela, como o DSR/VSR.
+Com `Downsample = 1`, janela sem borda e `-width 3840 -height 2160` nas opções de inicialização,
+a janela fica do tamanho do monitor e o DXVK reduz a imagem na apresentação.
+
+### Rodapé de informações
+Na aba **Gráficos** do menu de pausa aparece uma linha como a do FusionFix:
+`Liberty Edge v0.2: AA SMAA+; Internal 3840x2160 -> Output 1920x1080 (supersampling 4.00x)`.
 
 ## Instalação
 
@@ -34,8 +42,9 @@ Requisitos: GTA IV Complete Edition (1.2.0.59), **FusionFix 5.1.2** instalado.
 1. Baixe o `LibertyEdge.zip` da última build (aba **Actions** → build mais recente → *Artifacts*).
 2. Extraia a pasta `LibertyEdge` **dentro da pasta do jogo** (ao lado do `GTAIV.exe`).
 3. Rode `LibertyEdge\install.bat`. Ele faz backup do FusionFix original, instala o `.asi` e
-   acrescenta a seção `[LIBERTYEDGE]` ao `GTAIV.EFLC.FusionFix.ini`.
-4. No jogo: **Anti-aliasing = SMAA**.
+   acrescenta a seção `[LIBERTYEDGE]` ao `GTAIV.EFLC.FusionFix.ini` e instala os
+   `frontend_menus.xml` do FusionFix com as novas opções de menu (os originais ficam no backup).
+4. No jogo: **Gráficos → Anti-aliasing → SMAA+**.
 
 Para desinstalar: `LibertyEdge\uninstall.bat` (restaura o `.asi` e o `.ini` do backup).
 
@@ -43,13 +52,12 @@ Para desinstalar: `LibertyEdge\uninstall.bat` (restaura o `.asi` e o `.ini` do b
 
 ```ini
 [LIBERTYEDGE]
-SMAAPlus = 1                 ; 0 = SMAA original do FusionFix
 TextureThreshold = 0.10      ; maior = texturas mais nítidas
 GeometryThreshold = 0.03     ; menor = mais AA em silhuetas, postes, fios
 DepthEdgeSensitivity = 0.08  ; salto relativo de profundidade que conta como silhueta
 SearchSteps = 32
 SearchStepsDiagonal = 16
-SMAAPlusDebug = 0            ; 1 = mostra a máscara de bordas
+Downsample = 0               ; 1 = supersampling (ver acima)
 ```
 
 `[POSTFX] EnablePreAlphaDepth = 1` (padrão do FusionFix) é necessário para a parte de profundidade.

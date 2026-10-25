@@ -8,7 +8,7 @@ on:
 
 env:
   FUSIONFIX_REF: v5.1.2
-  LE_VERSION: 5.1.2.1
+  LE_VERSION: 5.1.2.2
 
 permissions:
   contents: write
@@ -83,6 +83,10 @@ jobs:
         Copy-Item le/installer/* pkg/LibertyEdge/ -Recurse
         New-Item -ItemType Directory -Force -Path pkg/LibertyEdge/files/plugins | Out-Null
         Copy-Item $asi.FullName pkg/LibertyEdge/files/plugins/
+        foreach ($m in @('update/common/data', 'update/TBoGT/common/data', 'update/TLAD/common/data')) {
+          New-Item -ItemType Directory -Force -Path "pkg/LibertyEdge/files/$m" | Out-Null
+          Copy-Item "fusionfix/data/$m/frontend_menus.xml" "pkg/LibertyEdge/files/$m/"
+        }
         Copy-Item le/README.md pkg/LibertyEdge/
         Copy-Item le/LICENSE pkg/LibertyEdge/
         Get-FileHash pkg/LibertyEdge/files/plugins/GTAIV.EFLC.FusionFix.asi | Format-List

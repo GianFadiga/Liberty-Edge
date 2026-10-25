@@ -15,6 +15,11 @@ if not exist "%LE%backup\GTAIV.EFLC.FusionFix.asi" (
 )
 copy /Y "%LE%backup\GTAIV.EFLC.FusionFix.asi" "%PLUG%\" >nul || goto erro
 copy /Y "%LE%backup\GTAIV.EFLC.FusionFix.ini" "%PLUG%\" >nul || goto erro
+if exist "%LE%backup\menus\common\frontend_menus.xml" (
+  copy /Y "%LE%backup\menus\common\frontend_menus.xml" "%~dp0..\update\common\data\" >nul || goto erro
+  copy /Y "%LE%backup\menus\TBoGT\frontend_menus.xml" "%~dp0..\update\TBoGT\common\data\" >nul || goto erro
+  copy /Y "%LE%backup\menus\TLAD\frontend_menus.xml" "%~dp0..\update\TLAD\common\data\" >nul || goto erro
+)
 echo.
 echo OK: FusionFix original restaurado.
 pause
