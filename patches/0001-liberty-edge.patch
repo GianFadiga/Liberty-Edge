@@ -108,7 +108,7 @@ index e58e210..879c3ee 100644
              <optionspc action="MENUOPT_ADJUST" label="Volumetric Fog" value="PREF_VOLUMETRICFOG" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Sun Shafts" value="PREF_SUNSHAFTS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF"/>
 diff --git a/source/comvars.ixx b/source/comvars.ixx
-index e80db07..d977580 100644
+index e80db07..512d69a 100644
 --- a/source/comvars.ixx
 +++ b/source/comvars.ixx
 @@ -2553,6 +2553,9 @@ export void* (__stdcall* getNativeAddress)(uint32_t);
@@ -117,7 +117,7 @@ index e80db07..d977580 100644
  export RECT gRect;
 +export bool gLEDownsample = false;   // Liberty Edge: window at monitor size, game renders above it
 +export bool gLEPlusReady = false;    // Liberty Edge: SMAA+ shaders compiled
-+export constexpr const char* gLEVersion = "0.3";
++export constexpr const char* gLEVersion = "0.3.1";
  export bool bDynamicShadowsForTrees = true;
  export bool bLoadingShown = false;
  export int nTimecycleUnpauseTimer = 0;
@@ -173,10 +173,10 @@ index 816d5ce..f1cc172 100644
                                  {
 diff --git a/source/ledownsample.ixx b/source/ledownsample.ixx
 new file mode 100644
-index 0000000..d75f551
+index 0000000..6c97f7c
 --- /dev/null
 +++ b/source/ledownsample.ixx
-@@ -0,0 +1,233 @@
+@@ -0,0 +1,234 @@
 +module;
 +
 +#include <common.hxx>
@@ -202,9 +202,9 @@ index 0000000..d75f551
 +sampler2D SrcS = sampler_state
 +{
 +    Texture = <SrcTex>;
-+    MinFilter = LINEAR; MagFilter = LINEAR; MipFilter = NONE;
++    MinFilter = POINT; MagFilter = POINT; MipFilter = NONE;
 +    AddressU = CLAMP; AddressV = CLAMP;
-+    SRGBTexture = TRUE;
++    SRGBTexture = FALSE;
 +};
 +float4 gSrc;   // width, height, 1/width, 1/height of the backbuffer
 +float4 gRatio; // backbuffer / output, per axis
@@ -215,11 +215,12 @@ index 0000000..d75f551
 +    float2 x = floor((q + 0.5) / gRatio.xy);     // output pixel that will fetch it
 +    float2 c = (x + 0.5) * gRatio.xy;            // footprint center (texel units)
 +    float2 h = gRatio.xy * 0.25;
-+    float4 s = tex2D(SrcS, (c + float2(-h.x, -h.y)) * gSrc.zw);
-+    s += tex2D(SrcS, (c + float2( h.x, -h.y)) * gSrc.zw);
-+    s += tex2D(SrcS, (c + float2(-h.x,  h.y)) * gSrc.zw);
-+    s += tex2D(SrcS, (c + float2( h.x,  h.y)) * gSrc.zw);
-+    return float4(s.rgb * 0.25, 1.0);
++    // average in linear light: decode and encode here instead of relying on sRGB sampler/write states
++    float3 s = pow(tex2D(SrcS, (c + float2(-h.x, -h.y)) * gSrc.zw).rgb, 2.2);
++    s += pow(tex2D(SrcS, (c + float2( h.x, -h.y)) * gSrc.zw).rgb, 2.2);
++    s += pow(tex2D(SrcS, (c + float2(-h.x,  h.y)) * gSrc.zw).rgb, 2.2);
++    s += pow(tex2D(SrcS, (c + float2( h.x,  h.y)) * gSrc.zw).rgb, 2.2);
++    return float4(pow(s * 0.25, 1.0 / 2.2), 1.0);
 +}
 +
 +technique Downsample
@@ -230,7 +231,7 @@ index 0000000..d75f551
 +        ZEnable = FALSE; ZWriteEnable = FALSE; StencilEnable = FALSE;
 +        AlphaBlendEnable = FALSE; AlphaTestEnable = FALSE; CullMode = NONE;
 +        ColorWriteEnable = RED | GREEN | BLUE | ALPHA;
-+        SRGBWriteEnable = TRUE;
++        SRGBWriteEnable = FALSE;
 +        ScissorTestEnable = FALSE;
 +    }
 +}
