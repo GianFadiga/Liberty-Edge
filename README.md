@@ -29,7 +29,12 @@ fica em `LibertyEdge.log`, na pasta do jogo.
 ### Supersampling / Downsample (experimental)
 Renderiza o jogo acima da resolução do monitor (ex.: 3840×2160) e reduz para a tela, como o DSR/VSR.
 Com `Downsample = 1`, janela sem borda e `-width 3840 -height 2160` nas opções de inicialização,
-a janela fica do tamanho do monitor e o DXVK reduz a imagem na apresentação.
+a janela fica do tamanho do monitor e a imagem é reduzida para a tela.
+
+O DXVK, sozinho, reduz pegando **1 de cada 4 pixels** (para escalas inteiras o blit de apresentação
+lê um único texel por pixel de saída), o que joga fora o supersampling. Desde a v0.3 o Liberty Edge faz a
+redução no fim do quadro, depois do HUD: cada pixel de saída vira a média (em luz linear) dos pixels que
+ele cobre, e o DXVK só repassa o resultado. O rodapé mostra `box filter` quando isso está ativo.
 
 ### Wire AA (em teste)
 Os fios de eletricidade do PC são desenhados no modo "deferred", que não tem o engrossamento por

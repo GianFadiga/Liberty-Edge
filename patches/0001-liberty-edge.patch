@@ -108,7 +108,7 @@ index e58e210..879c3ee 100644
              <optionspc action="MENUOPT_ADJUST" label="Volumetric Fog" value="PREF_VOLUMETRICFOG" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Sun Shafts" value="PREF_SUNSHAFTS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF"/>
 diff --git a/source/comvars.ixx b/source/comvars.ixx
-index e80db07..3aaa3c2 100644
+index e80db07..d977580 100644
 --- a/source/comvars.ixx
 +++ b/source/comvars.ixx
 @@ -2553,6 +2553,9 @@ export void* (__stdcall* getNativeAddress)(uint32_t);
@@ -117,15 +117,23 @@ index e80db07..3aaa3c2 100644
  export RECT gRect;
 +export bool gLEDownsample = false;   // Liberty Edge: window at monitor size, game renders above it
 +export bool gLEPlusReady = false;    // Liberty Edge: SMAA+ shaders compiled
-+export constexpr const char* gLEVersion = "0.2";
++export constexpr const char* gLEVersion = "0.3";
  export bool bDynamicShadowsForTrees = true;
  export bool bLoadingShown = false;
  export int nTimecycleUnpauseTimer = 0;
 diff --git a/source/extrainfo.ixx b/source/extrainfo.ixx
-index 816d5ce..d96edbf 100644
+index 816d5ce..f1cc172 100644
 --- a/source/extrainfo.ixx
 +++ b/source/extrainfo.ixx
-@@ -102,6 +102,8 @@ public:
+@@ -7,6 +7,7 @@ export module extrainfo;
+ import common;
+ import comvars;
+ import settings;
++import ledownsample;
+ 
+ std::wstring GetModuleVersion(HMODULE hModule)
+ {
+@@ -102,6 +103,8 @@ public:
                                  if (!ualVer.empty())
                                      extra += L" / " + ualVer;
  
@@ -134,7 +142,7 @@ index 816d5ce..d96edbf 100644
                                  auto ens = CText::getText("FF_WARN2");
                                  if (ens[0])
                                  {
-@@ -139,6 +141,27 @@ public:
+@@ -139,6 +142,28 @@ public:
                                  auto FF_WARN1 = CText::getText("FF_WARN1");
                                  if (imgNum >= imgArrSize) extra += FF_WARN1[0] ? FF_WARN1 : L"; ~r~WARNING: 255 IMG limit exceeded, will cause streaming issues.";
  
@@ -154,7 +162,8 @@ index 816d5ce..d96edbf 100644
 +                                        (a >= 3 && !gLEPlusReady) ? L" (unavailable, using SMAA)" : L"",
 +                                        inW, inH, outW, outH);
 +                                    if (inW > outW || inH > outH)
-+                                        extra += std::format(L" (supersampling {:.2f}x)", (double(inW) * inH) / (double(outW) * outH));
++                                        extra += std::format(L" (supersampling {:.2f}x{})", (double(inW) * inH) / (double(outW) * outH),
++                                            LEDownsampleActive() ? L", box filter" : L", DXVK scaling only");
 +                                    else if (gLEDownsample)
 +                                        extra += L" (Downsample on: set a game resolution above the monitor)";
 +                                }
@@ -162,6 +171,245 @@ index 816d5ce..d96edbf 100644
                                  auto FF_RESTART = CText::getText("FF_RESTART");
                                  if (FF_RESTART[0])
                                  {
+diff --git a/source/ledownsample.ixx b/source/ledownsample.ixx
+new file mode 100644
+index 0000000..d75f551
+--- /dev/null
++++ b/source/ledownsample.ixx
+@@ -0,0 +1,233 @@
++module;
++
++#include <common.hxx>
++#include <d3dx9.h>
++
++export module ledownsample;
++
++import common;
++import comvars;
++import d3dx9_43;
++
++// Liberty Edge: proper downsampling for supersampling ([LIBERTYEDGE] Downsample = 1).
++//
++// With a game resolution above the monitor, the backbuffer is e.g. 3840x2160 and DXVK scales it to the
++// 1920x1080 swapchain when presenting. For integer ratios DXVK's present blit fetches a single texel per
++// output pixel (floor((x + 0.5) * ratio)), which throws away 3 of every 4 samples: the picture looks like
++// native 1080p. This pass runs at the end of the frame (after the HUD) and writes, into every backbuffer
++// texel, the linear-light box average of the source footprint of the output pixel that will read it.
++// DXVK then picks the averaged value, so the presented image is a correct box-filtered downsample.
++
++static const char* kDownsampleFx = R"(
++texture SrcTex;
++sampler2D SrcS = sampler_state
++{
++    Texture = <SrcTex>;
++    MinFilter = LINEAR; MagFilter = LINEAR; MipFilter = NONE;
++    AddressU = CLAMP; AddressV = CLAMP;
++    SRGBTexture = TRUE;
++};
++float4 gSrc;   // width, height, 1/width, 1/height of the backbuffer
++float4 gRatio; // backbuffer / output, per axis
++
++float4 PS(float2 uv : TEXCOORD0) : COLOR
++{
++    float2 q = floor(uv * gSrc.xy);              // texel being written
++    float2 x = floor((q + 0.5) / gRatio.xy);     // output pixel that will fetch it
++    float2 c = (x + 0.5) * gRatio.xy;            // footprint center (texel units)
++    float2 h = gRatio.xy * 0.25;
++    float4 s = tex2D(SrcS, (c + float2(-h.x, -h.y)) * gSrc.zw);
++    s += tex2D(SrcS, (c + float2( h.x, -h.y)) * gSrc.zw);
++    s += tex2D(SrcS, (c + float2(-h.x,  h.y)) * gSrc.zw);
++    s += tex2D(SrcS, (c + float2( h.x,  h.y)) * gSrc.zw);
++    return float4(s.rgb * 0.25, 1.0);
++}
++
++technique Downsample
++{
++    pass P0
++    {
++        PixelShader = compile ps_3_0 PS();
++        ZEnable = FALSE; ZWriteEnable = FALSE; StencilEnable = FALSE;
++        AlphaBlendEnable = FALSE; AlphaTestEnable = FALSE; CullMode = NONE;
++        ColorWriteEnable = RED | GREEN | BLUE | ALPHA;
++        SRGBWriteEnable = TRUE;
++        ScissorTestEnable = FALSE;
++    }
++}
++)";
++
++export class LEDownsample
++{
++    template <typename T>
++    static void SafeRelease(T*& p) { if (p) { p->Release(); p = nullptr; } }
++
++    static inline ID3DXEffect* pEffect = nullptr;
++    static inline IDirect3DTexture9* pCopyTex = nullptr;
++    static inline IDirect3DSurface9* pCopySurf = nullptr;
++    static inline UINT copyW = 0, copyH = 0;
++    static inline D3DFORMAT copyFmt = D3DFMT_UNKNOWN;
++    static inline bool failed = false;
++
++public:
++    static inline bool active = false; // last frame was filtered (shown in the menu footer)
++
++    static void Shutdown()
++    {
++        SafeRelease(pCopySurf);
++        SafeRelease(pCopyTex);
++        SafeRelease(pEffect);
++        copyW = copyH = 0;
++        active = false;
++    }
++
++    static void Render(IDirect3DDevice9* device)
++    {
++        active = false;
++        if (!gLEDownsample || !device || failed || !gWnd)
++            return;
++
++        RECT cr = {};
++        GetClientRect(gWnd, &cr);
++        if (cr.right <= 0 || cr.bottom <= 0)
++            return;
++
++        IDirect3DSurface9* backBuffer = nullptr;
++        IDirect3DSwapChain9* swapChain = nullptr;
++        if (FAILED(device->GetSwapChain(0, &swapChain)) || !swapChain)
++            return;
++        swapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
++        swapChain->Release();
++        if (!backBuffer)
++            return;
++
++        D3DSURFACE_DESC desc{};
++        backBuffer->GetDesc(&desc);
++        if (desc.Width <= (UINT)cr.right && desc.Height <= (UINT)cr.bottom)
++        {
++            backBuffer->Release();
++            return; // not supersampling
++        }
++
++        if (!pEffect)
++        {
++            ID3DXBuffer* errors = nullptr;
++            if (FAILED(D3DXCreateEffect(device, kDownsampleFx, (UINT)strlen(kDownsampleFx), nullptr, nullptr, 0, nullptr, &pEffect, &errors)) || !pEffect)
++            {
++                FILE* f = nullptr;
++                wchar_t path[MAX_PATH];
++                GetModuleFileNameW(NULL, path, MAX_PATH);
++                auto file = std::filesystem::path(path).parent_path() / L"LibertyEdge.log";
++                if (_wfopen_s(&f, file.c_str(), L"a") == 0 && f)
++                {
++                    fprintf(f, "Downsample filter FAILED: %s\n", errors ? (const char*)errors->GetBufferPointer() : "unknown error");
++                    fclose(f);
++                }
++                SafeRelease(errors);
++                failed = true;
++                backBuffer->Release();
++                return;
++            }
++        }
++
++        if (!pCopyTex || copyW != desc.Width || copyH != desc.Height || copyFmt != desc.Format)
++        {
++            SafeRelease(pCopySurf);
++            SafeRelease(pCopyTex);
++            if (FAILED(device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, D3DPOOL_DEFAULT, &pCopyTex, nullptr)) || !pCopyTex
++                || FAILED(pCopyTex->GetSurfaceLevel(0, &pCopySurf)))
++            {
++                SafeRelease(pCopyTex);
++                failed = true;
++                backBuffer->Release();
++                return;
++            }
++            copyW = desc.Width; copyH = desc.Height; copyFmt = desc.Format;
++        }
++
++        if (FAILED(device->StretchRect(backBuffer, nullptr, pCopySurf, nullptr, D3DTEXF_POINT)))
++        {
++            backBuffer->Release();
++            return;
++        }
++
++        IDirect3DSurface9* oldRT = nullptr;
++        D3DVIEWPORT9 oldVP{};
++        device->GetViewport(&oldVP);
++        device->GetRenderTarget(0, &oldRT);
++        device->SetRenderTarget(0, backBuffer);
++
++        IDirect3DVertexBuffer9* oldVB = nullptr;
++        IDirect3DVertexDeclaration9* oldDecl = nullptr;
++        UINT oldOffset = 0, oldStride = 0;
++        DWORD oldFVF = 0;
++        device->GetStreamSource(0, &oldVB, &oldOffset, &oldStride);
++        device->GetVertexDeclaration(&oldDecl);
++        device->GetFVF(&oldFVF);
++        device->SetStreamSource(0, nullptr, 0, 0);
++        device->SetVertexDeclaration(nullptr);
++        device->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1);
++
++        D3DXVECTOR4 src((float)desc.Width, (float)desc.Height, 1.0f / desc.Width, 1.0f / desc.Height);
++        D3DXVECTOR4 ratio((float)desc.Width / cr.right, (float)desc.Height / cr.bottom, 0.0f, 0.0f);
++        pEffect->SetTexture(pEffect->GetParameterByName(nullptr, "SrcTex"), pCopyTex);
++        pEffect->SetVector(pEffect->GetParameterByName(nullptr, "gSrc"), &src);
++        pEffect->SetVector(pEffect->GetParameterByName(nullptr, "gRatio"), &ratio);
++        pEffect->SetTechnique(pEffect->GetTechniqueByName("Downsample"));
++
++        struct V { float x, y, z, rhw, u, v; };
++        V quad[4] =
++        {
++            { -0.5f,                    -0.5f,                     0.0f, 1.0f, 0.0f, 0.0f },
++            { -0.5f,                    float(desc.Height) - 0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
++            { float(desc.Width) - 0.5f, -0.5f,                     0.0f, 1.0f, 1.0f, 0.0f },
++            { float(desc.Width) - 0.5f, float(desc.Height) - 0.5f, 0.0f, 1.0f, 1.0f, 1.0f },
++        };
++
++        UINT passes = 0;
++        if (SUCCEEDED(pEffect->Begin(&passes, 0)))
++        {
++            if (SUCCEEDED(pEffect->BeginPass(0)))
++            {
++                device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V));
++                pEffect->EndPass();
++                active = true;
++            }
++            pEffect->End();
++        }
++        pEffect->SetTexture(pEffect->GetParameterByName(nullptr, "SrcTex"), nullptr);
++
++        device->SetStreamSource(0, oldVB, oldOffset, oldStride);
++        device->SetVertexDeclaration(oldDecl);
++        device->SetFVF(oldFVF);
++        SafeRelease(oldVB);
++        SafeRelease(oldDecl);
++
++        if (oldRT)
++        {
++            device->SetRenderTarget(0, oldRT);
++            oldRT->Release();
++        }
++        device->SetViewport(&oldVP);
++        backBuffer->Release();
++    }
++
++    LEDownsample()
++    {
++        FusionFix::onInitEvent() += []()
++        {
++            // registered in the synchronous init so it runs before FusionFix's console gamma pass
++            FusionFix::onEndScene() += []()
++            {
++                LEDownsample::Render(rage::grcDevice::GetD3DDevice());
++            };
++
++            FusionFix::onBeforeReset() += []()
++            {
++                LEDownsample::Shutdown();
++            };
++        };
++    }
++} LEDownsample;
++
++export bool LEDownsampleActive() { return LEDownsample::active; }
 diff --git a/source/postfx.ixx b/source/postfx.ixx
 index a6abeb9..0d792aa 100644
 --- a/source/postfx.ixx

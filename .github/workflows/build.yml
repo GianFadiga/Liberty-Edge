@@ -8,7 +8,7 @@ on:
 
 env:
   FUSIONFIX_REF: v5.1.2
-  LE_VERSION: 5.1.2.2
+  LE_VERSION: 5.1.2.3
 
 permissions:
   contents: write
