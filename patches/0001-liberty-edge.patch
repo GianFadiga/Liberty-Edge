@@ -108,7 +108,7 @@ index e58e210..879c3ee 100644
              <optionspc action="MENUOPT_ADJUST" label="Volumetric Fog" value="PREF_VOLUMETRICFOG" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Sun Shafts" value="PREF_SUNSHAFTS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF"/>
 diff --git a/source/comvars.ixx b/source/comvars.ixx
-index e80db07..512d69a 100644
+index e80db07..71a56bd 100644
 --- a/source/comvars.ixx
 +++ b/source/comvars.ixx
 @@ -2553,6 +2553,9 @@ export void* (__stdcall* getNativeAddress)(uint32_t);
@@ -117,7 +117,7 @@ index e80db07..512d69a 100644
  export RECT gRect;
 +export bool gLEDownsample = false;   // Liberty Edge: window at monitor size, game renders above it
 +export bool gLEPlusReady = false;    // Liberty Edge: SMAA+ shaders compiled
-+export constexpr const char* gLEVersion = "0.3.1";
++export constexpr const char* gLEVersion = "0.3.2";
  export bool bDynamicShadowsForTrees = true;
  export bool bLoadingShown = false;
  export int nTimecycleUnpauseTimer = 0;
@@ -173,10 +173,10 @@ index 816d5ce..f1cc172 100644
                                  {
 diff --git a/source/ledownsample.ixx b/source/ledownsample.ixx
 new file mode 100644
-index 0000000..6c97f7c
+index 0000000..59727a4
 --- /dev/null
 +++ b/source/ledownsample.ixx
-@@ -0,0 +1,234 @@
+@@ -0,0 +1,287 @@
 +module;
 +
 +#include <common.hxx>
@@ -237,6 +237,19 @@ index 0000000..6c97f7c
 +}
 +)";
 +
++static void leDSLog(const char* msg)
++{
++    wchar_t path[MAX_PATH];
++    GetModuleFileNameW(NULL, path, MAX_PATH);
++    auto file = std::filesystem::path(path).parent_path() / L"LibertyEdge.log";
++    FILE* f = nullptr;
++    if (_wfopen_s(&f, file.c_str(), L"a") == 0 && f)
++    {
++        fprintf(f, "%s\n", msg);
++        fclose(f);
++    }
++}
++
 +export class LEDownsample
 +{
 +    template <typename T>
@@ -248,6 +261,17 @@ index 0000000..6c97f7c
 +    static inline UINT copyW = 0, copyH = 0;
 +    static inline D3DFORMAT copyFmt = D3DFMT_UNKNOWN;
 +    static inline bool failed = false;
++    static inline int lastReason = -1;
++    static void reason(int code, const char* msg)
++    {
++        if (code != lastReason)
++        {
++            lastReason = code;
++            char b[256];
++            snprintf(b, sizeof(b), "Downsample: %s", msg);
++            leDSLog(b);
++        }
++    }
 +
 +public:
 +    static inline bool active = false; // last frame was filtered (shown in the menu footer)
@@ -264,8 +288,9 @@ index 0000000..6c97f7c
 +    static void Render(IDirect3DDevice9* device)
 +    {
 +        active = false;
-+        if (!gLEDownsample || !device || failed || !gWnd)
-+            return;
++        if (!gLEDownsample) { reason(1, "off (Downsample = 0 in the ini)"); return; }
++        if (!device || !gWnd) { reason(2, "no device/window yet"); return; }
++        if (failed) return;
 +
 +        RECT cr = {};
 +        GetClientRect(gWnd, &cr);
@@ -275,22 +300,30 @@ index 0000000..6c97f7c
 +        IDirect3DSurface9* backBuffer = nullptr;
 +        IDirect3DSwapChain9* swapChain = nullptr;
 +        if (FAILED(device->GetSwapChain(0, &swapChain)) || !swapChain)
++        {
++            reason(3, "GetSwapChain failed");
 +            return;
++        }
 +        swapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
 +        swapChain->Release();
 +        if (!backBuffer)
++        {
++            reason(4, "GetBackBuffer failed");
 +            return;
++        }
 +
 +        D3DSURFACE_DESC desc{};
 +        backBuffer->GetDesc(&desc);
 +        if (desc.Width <= (UINT)cr.right && desc.Height <= (UINT)cr.bottom)
 +        {
 +            backBuffer->Release();
-+            return; // not supersampling
++            reason(5, "backbuffer is not larger than the window (not supersampling)");
++            return;
 +        }
 +
 +        if (!pEffect)
 +        {
++            leDSLog("Downsample: creating filter effect");
 +            ID3DXBuffer* errors = nullptr;
 +            if (FAILED(D3DXCreateEffect(device, kDownsampleFx, (UINT)strlen(kDownsampleFx), nullptr, nullptr, 0, nullptr, &pEffect, &errors)) || !pEffect)
 +            {
@@ -319,6 +352,7 @@ index 0000000..6c97f7c
 +            {
 +                SafeRelease(pCopyTex);
 +                failed = true;
++                leDSLog("Downsample: CreateTexture FAILED (copy target)");
 +                backBuffer->Release();
 +                return;
 +            }
@@ -327,6 +361,7 @@ index 0000000..6c97f7c
 +
 +        if (FAILED(device->StretchRect(backBuffer, nullptr, pCopySurf, nullptr, D3DTEXF_POINT)))
 +        {
++            reason(6, "StretchRect backbuffer -> copy FAILED");
 +            backBuffer->Release();
 +            return;
 +        }
@@ -365,16 +400,30 @@ index 0000000..6c97f7c
 +        };
 +
 +        UINT passes = 0;
-+        if (SUCCEEDED(pEffect->Begin(&passes, 0)))
++        HRESULT hrBegin = pEffect->Begin(&passes, 0);
++        if (SUCCEEDED(hrBegin))
 +        {
-+            if (SUCCEEDED(pEffect->BeginPass(0)))
++            HRESULT hrPass = pEffect->BeginPass(0);
++            if (SUCCEEDED(hrPass))
 +            {
-+                device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V));
++                HRESULT hrDraw = device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V));
 +                pEffect->EndPass();
-+                active = true;
++                if (SUCCEEDED(hrDraw))
++                {
++                    active = true;
++                    char b[160];
++                    snprintf(b, sizeof(b), "box filter active %ux%u -> %ldx%ld", desc.Width, desc.Height, cr.right, cr.bottom);
++                    reason(0, b);
++                }
++                else
++                    reason(7, "DrawPrimitiveUP FAILED");
 +            }
++            else
++                reason(8, "BeginPass FAILED");
 +            pEffect->End();
 +        }
++        else
++            reason(9, "Effect Begin FAILED");
 +        pEffect->SetTexture(pEffect->GetParameterByName(nullptr, "SrcTex"), nullptr);
 +
 +        device->SetStreamSource(0, oldVB, oldOffset, oldStride);
@@ -396,6 +445,10 @@ index 0000000..6c97f7c
 +    {
 +        FusionFix::onInitEvent() += []()
 +        {
++            {
++                CIniReader iniReader("");
++                gLEDownsample = iniReader.ReadInteger("LIBERTYEDGE", "Downsample", 0) != 0;
++            }
 +            // registered in the synchronous init so it runs before FusionFix's console gamma pass
 +            FusionFix::onEndScene() += []()
 +            {
