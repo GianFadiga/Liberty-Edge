@@ -31,6 +31,14 @@ Renderiza o jogo acima da resolução do monitor (ex.: 3840×2160) e reduz para 
 Com `Downsample = 1`, janela sem borda e `-width 3840 -height 2160` nas opções de inicialização,
 a janela fica do tamanho do monitor e o DXVK reduz a imagem na apresentação.
 
+### Wire AA (em teste)
+Os fios de eletricidade do PC são desenhados no modo "deferred", que não tem o engrossamento por
+distância que o próprio jogo usa no modo antigo; por isso eles viram tracejados ao longe. O Liberty Edge
+substitui o `gta_wire.fxc` do FusionFix por uma versão em que o fio nunca fica mais fino que 1 pixel
+de saída e a parte "que sobra" é compensada por pontilhado (o filtro de stipple do FusionFix e o SMAA
+suavizam o pontilhado). O shader é gerado pelo CI a partir do código do FusionShaders com o
+RageShaderEditor, e o CI confere se a ferramenta reproduz o arquivo original antes de aplicar a mudança.
+
 ### Rodapé de informações
 Na aba **Gráficos** do menu de pausa aparece uma linha como a do FusionFix:
 `Liberty Edge v0.2: AA SMAA+; Internal 3840x2160 -> Output 1920x1080 (supersampling 4.00x)`.

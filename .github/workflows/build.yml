@@ -2,7 +2,7 @@ name: Build Liberty Edge
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
   pull_request:
   workflow_dispatch:
 
@@ -73,6 +73,32 @@ jobs:
       working-directory: fusionfix
       run: msbuild -m build/GTAIV.EFLC.FusionFix.slnx /property:Configuration=Release /property:Platform=Win32
 
+    - name: Build Wire AA shader (gta_wire.fxc)
+      shell: pwsh
+      run: |
+        $rse = (Resolve-Path fusionfix/tools/RageShaderEditor/RageShaderEditor.exe).Path
+        $sh = (Resolve-Path fusionfix/shaders/GTAIV.EFLC.FusionShaders).Path
+        $xml = Join-Path $sh 'win32_30_nv8/gta_wire.fxc.xml'
+        $out = Join-Path $sh 'win32_30_nv8/gta_wire.fxc'
+        function Build-Fxc {
+          if (Test-Path $out) { Remove-Item $out }
+          $p = Start-Process -FilePath $rse -ArgumentList "`"$xml`"" -WorkingDirectory (Split-Path $rse) -PassThru -NoNewWindow
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "RageShaderEditor timed out" }
+          if (-not (Test-Path $out)) { throw "RageShaderEditor did not produce gta_wire.fxc (exit $($p.ExitCode))" }
+        }
+        # 1) sanity check: the unmodified source must reproduce FusionFix 5.1.2's shipped gta_wire.fxc
+        Build-Fxc
+        $stock = (Get-FileHash $out -Algorithm SHA256).Hash.ToLower()
+        $expected = '4c55d8a6e4254ee0a761c494c4e76e7d291d9a4f8f02f7c3dc52fe9c337dba1a'
+        if ($stock -eq $expected) { Write-Host "Toolchain check OK: stock gta_wire.fxc reproduced" } else { Write-Host "::warning::stock gta_wire.fxc differs from FusionFix 5.1.2 ($stock)" }
+        # 2) Liberty Edge Wire AA
+        git -C $sh apply --whitespace=nowarn (Resolve-Path le/patches/fusionshaders/0001-wire-aa.patch).Path
+        if ($LASTEXITCODE -ne 0) { throw "wire patch did not apply" }
+        Build-Fxc
+        New-Item -ItemType Directory -Force -Path wireaa | Out-Null
+        Copy-Item $out wireaa/gta_wire.fxc
+        Get-FileHash wireaa/gta_wire.fxc | Format-List
+
     - name: Package
       shell: pwsh
       run: |
@@ -87,6 +113,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path "pkg/LibertyEdge/files/$m" | Out-Null
           Copy-Item "fusionfix/data/$m/frontend_menus.xml" "pkg/LibertyEdge/files/$m/"
         }
+        New-Item -ItemType Directory -Force -Path pkg/LibertyEdge/files/update/common/shaders/win32_30 | Out-Null
+        Copy-Item wireaa/gta_wire.fxc pkg/LibertyEdge/files/update/common/shaders/win32_30/
         Copy-Item le/README.md pkg/LibertyEdge/
         Copy-Item le/LICENSE pkg/LibertyEdge/
         Get-FileHash pkg/LibertyEdge/files/plugins/GTAIV.EFLC.FusionFix.asi | Format-List
@@ -99,13 +127,14 @@ jobs:
         archive: false
         path: LibertyEdge.zip
 
-    - name: Publish nightly release
-      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    - name: Publish release (nightly for main, test-<branch> for other branches)
+      if: github.event_name == 'push'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-        gh release create nightly LibertyEdge.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
-          --title "Liberty Edge nightly (FusionFix ${FUSIONFIX_REF})" \
+        if [ "$GITHUB_REF_NAME" = "main" ]; then TAG=nightly; else TAG="test-${GITHUB_REF_NAME//\//-}"; fi
+        gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        gh release create "$TAG" LibertyEdge.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+          --title "Liberty Edge ${TAG} (FusionFix ${FUSIONFIX_REF})" \
           --notes "Build automatica do commit ${GITHUB_SHA}. Requer FusionFix ${FUSIONFIX_REF}. Extraia a pasta LibertyEdge ao lado do GTAIV.exe e rode LibertyEdge\\install.bat."

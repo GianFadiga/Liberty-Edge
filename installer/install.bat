@@ -39,6 +39,10 @@ if not exist "%LE%backup\menus\common\frontend_menus.xml" (
   copy /Y "%GAME%\update\TBoGT\common\data\frontend_menus.xml" "%LE%backup\menus\TBoGT\" >nul || goto erro
   copy /Y "%GAME%\update\TLAD\common\data\frontend_menus.xml" "%LE%backup\menus\TLAD\" >nul || goto erro
 )
+if not exist "%LE%backup\shaders\gta_wire.fxc" (
+  mkdir "%LE%backup\shaders" 2>nul
+  copy /Y "%GAME%\update\common\shaders\win32_30\gta_wire.fxc" "%LE%backup\shaders\" >nul || goto erro
+)
 copy /Y "%LE%files\plugins\GTAIV.EFLC.FusionFix.asi" "%PLUG%\" >nul || goto erro
 xcopy "%LE%files\update\*" "%GAME%\update\" /E /Y /I /Q /R >nul || goto erro
 findstr /B /C:"[LIBERTYEDGE]" "%PLUG%\GTAIV.EFLC.FusionFix.ini" >nul
