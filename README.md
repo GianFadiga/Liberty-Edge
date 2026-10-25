@@ -37,6 +37,11 @@ lê um único texel por pixel de saída), o que joga fora o supersampling. Desde
 redução no fim do quadro, depois do HUD: cada pixel de saída vira a média (em luz linear) dos pixels que
 ele cobre, e o DXVK só repassa o resultado. O rodapé mostra `box filter` quando isso está ativo.
 
+Desde a v0.5 o filtro funciona certo em qualquer escala (inclusive 1,5×, em que o DXVK mistura dois
+pixels vizinhos): cada pixel recebe o valor do pixel de saída que mais o lê, e a média usa 2×2 ou 3×3
+amostras conforme a escala. Depois da redução vem uma nitidez adaptativa ao contraste (no estilo do
+AMD CAS), controlada por `Sharpen` (0 desliga), que compensa a leve suavidade da média.
+
 ### Wire AA (em teste)
 Os fios de eletricidade do PC são desenhados no modo "deferred", que não tem o engrossamento por
 distância que o próprio jogo usa no modo antigo; por isso eles viram tracejados ao longe. O Liberty Edge
@@ -47,8 +52,30 @@ RageShaderEditor, e o CI confere se a ferramenta reproduz o arquivo original ant
 
 ### Rodapé de informações
 Na aba **Gráficos** do menu de pausa aparece uma linha como a do FusionFix:
-`Liberty Edge v0.4: AA SMAA+; Internal 3840x2160 -> Output 1920x1080 (supersampling 4.00x, box filter)`.
+`Liberty Edge v0.5: AA SMAA+; Internal 3840x2160 -> Output 1920x1080 (supersampling 4.00x, box filter + sharpen 0.30)`.
 A resolução interna é a do backbuffer real no último quadro.
+
+### Preset Ultimate
+`LibertyEdge\preset_ULTIMATE.bat` aplica de uma vez (com backup em `LibertyEdge\backup\preset\`):
+
+| Ajuste | Valor | Por quê |
+|---|---|---|
+| `[SHADOWS] CascadeBlendSize` | 0.4 (era 0.1) | a troca entre as faixas de sombra (o "quadrado" que carrega em volta do personagem/carro) vira uma transição gradual |
+| `[SHADOWS] HighResolutionShadows` | 1 | mapa de sombras com o dobro da resolução: sombras distantes menos borradas e serrilhadas (pesado) |
+| `LamppostShadows` (menu) | 1 | postes voltam a projetar sombra à noite |
+| `[LIBERTYEDGE] Downsample` / `Sharpen` | 1 / 0.3 | supersampling com filtro próprio e nitidez |
+
+`preset_RESTAURAR.bat` volta o ini/cfg de antes. O alcance das sombras em si não aumenta: os
+desenvolvedores do FusionFix já o estenderam e consideram ir além inviável (issue #1635).
+No jogo, complete com: Modo de vídeo 3840×2160 (2880×1620 se pesar), Anti-aliasing SMAA+,
+Sombras Muito alta, Distância de visão/detalhe entre 70 e 100.
+
+### Mods recomendados (não incluídos)
+- Texturas: Higher Resolution Vehicle Pack (Nexus 282), LC Roads and Highways (169). Com supersampling
+  em 4K a textura melhor aparece bem.
+- Liberty's Shadows (Nexus 1459): sombras dinâmicas de faróis/vitrines/semáforos. Testado pelo autor no
+  FusionFix 5.1.1 e checa versão; com o Liberty Edge ainda não foi verificado.
+- Não recomendados na Arc: RTX Remix (feito para NVIDIA), ENB/iCEnhancer (conflitam com Vulkan/FusionFix).
 
 ## Instalação
 
@@ -72,7 +99,8 @@ GeometryThreshold = 0.03     ; menor = mais AA em silhuetas, postes, fios
 DepthEdgeSensitivity = 0.08  ; salto relativo de profundidade que conta como silhueta
 SearchSteps = 32
 SearchStepsDiagonal = 16
-Downsample = 0               ; 1 = supersampling (ver acima)
+Downsample = 1               ; supersampling: escolha um Modo de vídeo acima do monitor
+Sharpen = 0.3                ; nitidez depois da redução (0 = desliga)
 ```
 
 `[POSTFX] EnablePreAlphaDepth = 1` (padrão do FusionFix) é necessário para a parte de profundidade.

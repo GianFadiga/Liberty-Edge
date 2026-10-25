@@ -1,8 +1,8 @@
 diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
-index c575020..90df5d2 100644
+index c575020..52f37cd 100644
 --- a/data/plugins/GTAIV.EFLC.FusionFix.ini
 +++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
-@@ -107,3 +107,11 @@ RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
+@@ -107,3 +107,12 @@ RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
  [EXPERIMENTAL]
  DisplayMemoryStats = 0                        // while the FPS Counter is enabled, it prints some memory counters alongside, like for used streaming memory and memory used by the entire process
  ReflectionMSAAQuality = 0                     // Applies MSAA to the reflection maps (exterior, interior, water, mirror) like on Xbox 360. Valid options: 2|4|8, other values are ignored and disable this feature.
@@ -13,7 +13,8 @@ index c575020..90df5d2 100644
 +DepthEdgeSensitivity = 0.08                   // relative depth jump that counts as a silhouette
 +SearchSteps = 32                              // edge search length (longer = smoother near-horizontal lines)
 +SearchStepsDiagonal = 16                      // diagonal edge search length
-+Downsample = 0                                // EXPERIMENTAL supersampling: 1 + Borderless + a game resolution above the monitor (e.g. -width 3840 -height 2160): the window stays at monitor size and the image is scaled down
++Downsample = 1                                // supersampling: Borderless, then pick a Video Mode above the monitor in Graphics > Video Mode (e.g. 3840x2160)
++Sharpen = 0.3                                 // contrast adaptive sharpening after the supersampling downsample | 0: off | [0.0; 1.0]
 diff --git a/data/update/TBoGT/common/data/frontend_menus.xml b/data/update/TBoGT/common/data/frontend_menus.xml
 index 8ecb165..77f1dee 100644
 --- a/data/update/TBoGT/common/data/frontend_menus.xml
@@ -108,21 +109,22 @@ index e58e210..879c3ee 100644
              <optionspc action="MENUOPT_ADJUST" label="Volumetric Fog" value="PREF_VOLUMETRICFOG" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Sun Shafts" value="PREF_SUNSHAFTS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF"/>
 diff --git a/source/comvars.ixx b/source/comvars.ixx
-index e80db07..502dee9 100644
+index e80db07..8623106 100644
 --- a/source/comvars.ixx
 +++ b/source/comvars.ixx
-@@ -2553,6 +2553,9 @@ export void* (__stdcall* getNativeAddress)(uint32_t);
+@@ -2553,6 +2553,10 @@ export void* (__stdcall* getNativeAddress)(uint32_t);
  export const char* pszCurrentCutsceneName = nullptr;
  export HWND gWnd;
  export RECT gRect;
 +export bool gLEDownsample = false;   // Liberty Edge: window at monitor size, game renders above it
 +export bool gLEPlusReady = false;    // Liberty Edge: SMAA+ shaders compiled
-+export constexpr const char* gLEVersion = "0.4.1";
++export float gLESharpen = 0.3f;      // Liberty Edge: CAS strength after the supersampling downsample
++export constexpr const char* gLEVersion = "0.5";
  export bool bDynamicShadowsForTrees = true;
  export bool bLoadingShown = false;
  export int nTimecycleUnpauseTimer = 0;
 diff --git a/source/extrainfo.ixx b/source/extrainfo.ixx
-index 816d5ce..de3fa2c 100644
+index 816d5ce..2ffebd1 100644
 --- a/source/extrainfo.ixx
 +++ b/source/extrainfo.ixx
 @@ -7,6 +7,7 @@ export module extrainfo;
@@ -164,7 +166,7 @@ index 816d5ce..de3fa2c 100644
 +                                        inW, inH, outW, outH);
 +                                    if (inW > outW || inH > outH)
 +                                        extra += std::format(L" (supersampling {:.2f}x{})", (double(inW) * inH) / (double(outW) * outH),
-+                                            LEDownsampleActive() ? L", box filter" : L", DXVK scaling only");
++                                            LEDownsampleActive() ? (gLESharpen > 0.0f ? std::format(L", box filter + sharpen {:.2f}", gLESharpen) : std::wstring(L", box filter")) : std::wstring(L", DXVK scaling only"));
 +                                    else if (gLEDownsample)
 +                                        extra += L" (Downsample on: pick a Video Mode above your monitor, e.g. 3840x2160)";
 +                                }
@@ -174,16 +176,18 @@ index 816d5ce..de3fa2c 100644
                                  {
 diff --git a/source/ledownsample.ixx b/source/ledownsample.ixx
 new file mode 100644
-index 0000000..abea6b0
+index 0000000..19832a9
 --- /dev/null
 +++ b/source/ledownsample.ixx
-@@ -0,0 +1,378 @@
+@@ -0,0 +1,438 @@
 +module;
 +
 +#include <common.hxx>
 +#include <d3dx9.h>
 +#include <vector>
 +#include <cstdarg>
++#include <cmath>
++#include <algorithm>
 +
 +export module ledownsample;
 +
@@ -197,7 +201,8 @@ index 0000000..abea6b0
 +// 1920x1080 swapchain when presenting. For integer ratios DXVK's present blit fetches a single texel per
 +// output pixel (floor((x + 0.5) * ratio)), which throws away 3 of every 4 samples: the picture looks like
 +// native 1080p. This pass runs at the end of the frame (after the HUD) and writes, into every backbuffer
-+// texel, the linear-light box average of the source footprint of the output pixel that will read it.
++// texel, the linear-light box average of the source footprint of the output pixel that will read it,
++// optionally followed by contrast adaptive sharpening ([LIBERTYEDGE] Sharpen).
 +// DXVK then picks the averaged value, so the presented image is a correct box-filtered downsample.
 +
 +static const char* kDownsampleFx = R"(
@@ -210,20 +215,73 @@ index 0000000..abea6b0
 +    SRGBTexture = FALSE;
 +};
 +float4 gSrc;   // width, height, 1/width, 1/height of the backbuffer
-+float4 gRatio; // backbuffer / output, per axis
++float4 gRatio; // xy: backbuffer / output per axis, zw: output width, height
++float4 gParams; // x: sharpening [0; 1], y: taps per axis
++
++// DXVK's present blit (downscale) reads, for output pixel x, the two texels around c = (x + 0.5) * ratio:
++// floor(c) with weight 1 - fract(c) and floor(c) + 1 with weight fract(c). Each texel is given to the
++// output pixel that reads it with the highest weight (exact for integer ratios, small leak otherwise).
++float PickOutput(float q, float r)
++{
++    float x0 = floor((q + 0.5) / r);
++    float best = x0;
++    float bw = 0.0;
++    [unroll] for (int k = -1; k <= 1; k++)
++    {
++        float x = x0 + k;
++        float c = (x + 0.5) * r;
++        float fl = floor(c);
++        float f = c - fl;
++        float w = (fl == q) ? (1.0 - f) : ((fl + 1.0 == q) ? f : 0.0);
++        if (w > bw) { bw = w; best = x; }
++    }
++    return best;
++}
++
++// linear-light box average of the source footprint of output pixel x
++float3 Footprint(float2 x)
++{
++    x = clamp(x, 0.0, gRatio.zw - 1.0);
++    float n = gParams.y;
++    float2 step = gRatio.xy / n;
++    float2 o = x * gRatio.xy + 0.5 * step;
++    float3 s = 0.0;
++    [loop] for (int j = 0; j < 3; j++)
++    {
++        if (j < n)
++        {
++            [loop] for (int i = 0; i < 3; i++)
++            {
++                if (i < n)
++                {
++                    float2 p = o + float2(i, j) * step;
++                    s += pow(tex2Dlod(SrcS, float4(p * gSrc.zw, 0.0, 0.0)).rgb, 2.2);
++                }
++            }
++        }
++    }
++    return s / (n * n);
++}
 +
 +float4 PS(float2 uv : TEXCOORD0) : COLOR
 +{
-+    float2 q = floor(uv * gSrc.xy);              // texel being written
-+    float2 x = floor((q + 0.5) / gRatio.xy);     // output pixel that will fetch it
-+    float2 c = (x + 0.5) * gRatio.xy;            // footprint center (texel units)
-+    float2 h = gRatio.xy * 0.25;
-+    // average in linear light: decode and encode here instead of relying on sRGB sampler/write states
-+    float3 s = pow(tex2D(SrcS, (c + float2(-h.x, -h.y)) * gSrc.zw).rgb, 2.2);
-+    s += pow(tex2D(SrcS, (c + float2( h.x, -h.y)) * gSrc.zw).rgb, 2.2);
-+    s += pow(tex2D(SrcS, (c + float2(-h.x,  h.y)) * gSrc.zw).rgb, 2.2);
-+    s += pow(tex2D(SrcS, (c + float2( h.x,  h.y)) * gSrc.zw).rgb, 2.2);
-+    return float4(pow(s * 0.25, 1.0 / 2.2), 1.0);
++    float2 q = floor(uv * gSrc.xy);
++    float2 x = float2(PickOutput(q.x, gRatio.x), PickOutput(q.y, gRatio.y));
++    float3 c = Footprint(x);
++    if (gParams.x > 0.0)
++    {
++        // contrast adaptive sharpening (after AMD FidelityFX CAS) on the downsampled image
++        float3 n = Footprint(x + float2(0.0, -1.0));
++        float3 w = Footprint(x + float2(-1.0, 0.0));
++        float3 e = Footprint(x + float2(1.0, 0.0));
++        float3 s = Footprint(x + float2(0.0, 1.0));
++        float3 mn = min(c, min(min(n, w), min(e, s)));
++        float3 mx = max(c, max(max(n, w), max(e, s)));
++        float3 amp = sqrt(saturate(min(mn, 1.0 - mx) / max(mx, 1e-5)));
++        float3 k = -amp / lerp(8.0, 5.0, gParams.x);
++        c = saturate((c + k * (n + w + e + s)) / (1.0 + 4.0 * k));
++    }
++    return float4(pow(c, 1.0 / 2.2), 1.0);
 +}
 +
 +technique Downsample
@@ -472,10 +530,13 @@ index 0000000..abea6b0
 +        device->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1);
 +
 +        D3DXVECTOR4 src((float)desc.Width, (float)desc.Height, 1.0f / desc.Width, 1.0f / desc.Height);
-+        D3DXVECTOR4 ratio((float)desc.Width / cr.right, (float)desc.Height / cr.bottom, 0.0f, 0.0f);
++        D3DXVECTOR4 ratio((float)desc.Width / cr.right, (float)desc.Height / cr.bottom, (float)cr.right, (float)cr.bottom);
++        float taps = std::clamp(std::ceil(std::max(ratio.x, ratio.y) - 0.01f), 1.0f, 3.0f);
++        D3DXVECTOR4 params(gLESharpen, taps, 0.0f, 0.0f);
 +        pEffect->SetTexture(pEffect->GetParameterByName(nullptr, "SrcTex"), pCopyTex);
 +        pEffect->SetVector(pEffect->GetParameterByName(nullptr, "gSrc"), &src);
 +        pEffect->SetVector(pEffect->GetParameterByName(nullptr, "gRatio"), &ratio);
++        pEffect->SetVector(pEffect->GetParameterByName(nullptr, "gParams"), &params);
 +        pEffect->SetTechnique(pEffect->GetTechniqueByName("Downsample"));
 +
 +        struct V { float x, y, z, rhw, u, v; };
@@ -536,6 +597,7 @@ index 0000000..abea6b0
 +            {
 +                CIniReader iniReader("");
 +                gLEDownsample = iniReader.ReadInteger("LIBERTYEDGE", "Downsample", 0) != 0;
++                gLESharpen = std::clamp(iniReader.ReadFloat("LIBERTYEDGE", "Sharpen", 0.3f), 0.0f, 1.0f);
 +            }
 +            if (gLEDownsample)
 +                LEModes::install();
@@ -557,7 +619,7 @@ index 0000000..abea6b0
 +export UINT LEBackBufferWidth() { return LEDownsample::backW; }
 +export UINT LEBackBufferHeight() { return LEDownsample::backH; }
 diff --git a/source/postfx.ixx b/source/postfx.ixx
-index a6abeb9..0d792aa 100644
+index a6abeb9..681ceb1 100644
 --- a/source/postfx.ixx
 +++ b/source/postfx.ixx
 @@ -192,6 +192,83 @@ public:
@@ -644,7 +706,7 @@ index a6abeb9..0d792aa 100644
      int nAmbientOcclusionSamples = 9;
      int nAmbientOcclusionBlurPasses = 1;
      int nAmbientOcclusionLogMaxOffset = 3;
-@@ -623,6 +700,14 @@ public:
+@@ -623,6 +700,15 @@ public:
  
          bEnablePreAlphaDepth = iniReader.ReadInteger("POSTFX", "EnablePreAlphaDepth", 1) != 0;
  
@@ -653,13 +715,14 @@ index a6abeb9..0d792aa 100644
 +        leDepthRel = std::clamp(iniReader.ReadFloat("LIBERTYEDGE", "DepthEdgeSensitivity", 0.08f), 0.005f, 1.0f);
 +        leSearchSteps = std::clamp(iniReader.ReadInteger("LIBERTYEDGE", "SearchSteps", 32), 4, 112);
 +        leSearchStepsDiag = std::clamp(iniReader.ReadInteger("LIBERTYEDGE", "SearchStepsDiagonal", 16), 0, 20);
-+        leLog(std::format("Liberty Edge {} on FusionFix 5.1.2 | Tex={:.3f} Geo={:.3f} DepthRel={:.3f} Steps={}/{} PreAlphaDepth={} Downsample={}",
-+            gLEVersion, leTexThreshold, leGeoThreshold, leDepthRel, leSearchSteps, leSearchStepsDiag, (int)bEnablePreAlphaDepth, (int)gLEDownsample), true);
++        gLESharpen = std::clamp(iniReader.ReadFloat("LIBERTYEDGE", "Sharpen", 0.3f), 0.0f, 1.0f);
++        leLog(std::format("Liberty Edge {} on FusionFix 5.1.2 | Tex={:.3f} Geo={:.3f} DepthRel={:.3f} Steps={}/{} PreAlphaDepth={} Downsample={} Sharpen={:.2f}",
++            gLEVersion, leTexThreshold, leGeoThreshold, leDepthRel, leSearchSteps, leSearchStepsDiag, (int)bEnablePreAlphaDepth, (int)gLEDownsample, gLESharpen), true);
 +
          nAmbientOcclusionBlurPasses = iniReader.ReadInteger("POSTFX", "AmbientOcclusionBlurPasses", 1);
          nAmbientOcclusionSamples = iniReader.ReadInteger("POSTFX", "AmbientOcclusionSamples", 9);
          nAmbientOcclusionLogMaxOffset = iniReader.ReadInteger("POSTFX", "AmbientOcclusionLogMaxOffset", 3);
-@@ -932,6 +1017,7 @@ private:
+@@ -932,6 +1018,7 @@ private:
          GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)&Init, &hm);
  
          PostFxResources.loadShaders(rage::grcDevice::GetD3DDevice(), hm);
@@ -667,7 +730,7 @@ index a6abeb9..0d792aa 100644
  
          OnDeviceReset();
  
-@@ -1350,6 +1436,15 @@ private:
+@@ -1350,6 +1437,15 @@ private:
                          }
  
                          // SMAA
@@ -683,7 +746,7 @@ index a6abeb9..0d792aa 100644
                          if (UsePostFxAA->get() >= FusionFixSettings.AntialiasingText.eSMAA &&
                             PostFxResources.SMAA_EdgeDetection && PostFxResources.SMAA_BlendingWeightsCalculation && PostFxResources.SMAA_NeighborhoodBlending &&
                             PostFxResources.SMAA_EdgeDetectionVS && PostFxResources.SMAA_BlendingWeightsCalculationVS && PostFxResources.SMAA_NeighborhoodBlendingVS &&
-@@ -1409,16 +1504,19 @@ private:
+@@ -1409,16 +1505,19 @@ private:
                              pDevice->SetSamplerState(3, D3DSAMP_ADDRESSW, D3DTADDRESS_CLAMP);
  
                              // SMAA_EdgeDetection
@@ -707,7 +770,7 @@ index a6abeb9..0d792aa 100644
                              pDevice->SetRenderTarget(0, PostFxResources.blendSurf);
                              pDevice->SetTexture(1, PostFxResources.edgesTex->mD3DTexture);
                              pDevice->SetTexture(2, PostFxResources.SMAA_areaTex);
-@@ -1427,8 +1525,8 @@ private:
+@@ -1427,8 +1526,8 @@ private:
                              pDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
  
                              // SMAA_NeighborhoodBlending

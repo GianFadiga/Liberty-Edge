@@ -8,7 +8,7 @@ on:
 
 env:
   FUSIONFIX_REF: v5.1.2
-  LE_VERSION: 5.1.2.5
+  LE_VERSION: 5.1.2.6
 
 permissions:
   contents: write
@@ -61,6 +61,37 @@ jobs:
           %FXC% /nologo /T vs_3_0 /E DX9_SMAABlendingWeightCalculationVS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
           %FXC% /nologo /T vs_3_0 /E DX9_SMAANeighborhoodBlendingVS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
         )
+
+    - name: Validate supersampling downsample effect with fxc
+      shell: pwsh
+      working-directory: fusionfix
+      run: |
+        $src = Get-Content source/ledownsample.ixx -Raw
+        $m = [regex]::Match($src, 'kDownsampleFx = R"\((.*?)\)";', 'Singleline')
+        if (-not $m.Success) { throw "effect text not found" }
+        Set-Content -Path $env:RUNNER_TEMP/le_downsample.fx -Value $m.Groups[1].Value -Encoding ascii
+        & source\dxsdk\lib\x86\fxc.exe /nologo /T fx_2_0 /Fo NUL $env:RUNNER_TEMP/le_downsample.fx
+        if ($LASTEXITCODE -ne 0) { throw "downsample effect does not compile" }
+
+    - name: Smoke test preset_ULTIMATE (preset.ps1) on a copy of the FusionFix ini
+      shell: pwsh
+      run: |
+        $t = Join-Path $env:RUNNER_TEMP 'presettest'
+        New-Item -ItemType Directory -Force -Path "$t/plugins", "$t/LibertyEdge" | Out-Null
+        Copy-Item fusionfix/data/plugins/GTAIV.EFLC.FusionFix.ini "$t/plugins/"
+        Set-Content "$t/plugins/GTAIV.EFLC.FusionFix.cfg" "[MAIN]`r`nWindowed=1`r`n[SHADOWS]`r`nShadowFilter=2`r`nLamppostShadows=0`r`n"
+        Copy-Item le/installer/preset.ps1 "$t/LibertyEdge/"
+        & pwsh -NoProfile -File "$t/LibertyEdge/preset.ps1" -Mode ultimate
+        $ini = Get-Content "$t/plugins/GTAIV.EFLC.FusionFix.ini" -Raw
+        $cfg = Get-Content "$t/plugins/GTAIV.EFLC.FusionFix.cfg" -Raw
+        if ($ini -notmatch '(?m)^CascadeBlendSize = 0\.4\s') { throw "CascadeBlendSize not set" }
+        if ($ini -notmatch '(?m)^HighResolutionShadows = 1\s') { throw "HighResolutionShadows not set" }
+        if ($ini -notmatch '(?m)^Sharpen = 0\.3\s') { throw "Sharpen not set" }
+        if ($cfg -notmatch '(?m)^LamppostShadows=1') { throw "LamppostShadows not set" }
+        if ([System.IO.File]::ReadAllBytes("$t/plugins/GTAIV.EFLC.FusionFix.ini")[0] -eq 0xEF) { throw "BOM written" }
+        & pwsh -NoProfile -File "$t/LibertyEdge/preset.ps1" -Mode restore
+        if ((Get-Content "$t/plugins/GTAIV.EFLC.FusionFix.ini" -Raw) -ne (Get-Content fusionfix/data/plugins/GTAIV.EFLC.FusionFix.ini -Raw)) { throw "restore mismatch" }
+        Write-Host "preset OK"
 
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@main
