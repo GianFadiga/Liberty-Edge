@@ -11,7 +11,7 @@ env:
   LE_VERSION: 5.1.2.1
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -94,3 +94,14 @@ jobs:
       with:
         archive: false
         path: LibertyEdge.zip
+
+    - name: Publish nightly release
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        gh release create nightly LibertyEdge.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+          --title "Liberty Edge nightly (FusionFix ${FUSIONFIX_REF})" \
+          --notes "Build automatica do commit ${GITHUB_SHA}. Requer FusionFix ${FUSIONFIX_REF}. Extraia a pasta LibertyEdge ao lado do GTAIV.exe e rode LibertyEdge\\install.bat."
