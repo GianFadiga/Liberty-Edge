@@ -115,6 +115,8 @@ jobs:
         }
         New-Item -ItemType Directory -Force -Path pkg/LibertyEdge/files/update/common/shaders/win32_30 | Out-Null
         Copy-Item wireaa/gta_wire.fxc pkg/LibertyEdge/files/update/common/shaders/win32_30/
+        New-Item -ItemType Directory -Force -Path pkg/LibertyEdge/wireaa | Out-Null
+        Copy-Item wireaa/gta_wire.fxc pkg/LibertyEdge/wireaa/
         Copy-Item le/README.md pkg/LibertyEdge/
         Copy-Item le/LICENSE pkg/LibertyEdge/
         Get-FileHash pkg/LibertyEdge/files/plugins/GTAIV.EFLC.FusionFix.asi | Format-List
