@@ -108,7 +108,7 @@ index e58e210..879c3ee 100644
              <optionspc action="MENUOPT_ADJUST" label="Volumetric Fog" value="PREF_VOLUMETRICFOG" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Sun Shafts" value="PREF_SUNSHAFTS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF"/>
 diff --git a/source/comvars.ixx b/source/comvars.ixx
-index e80db07..71a56bd 100644
+index e80db07..b9a8fb4 100644
 --- a/source/comvars.ixx
 +++ b/source/comvars.ixx
 @@ -2553,6 +2553,9 @@ export void* (__stdcall* getNativeAddress)(uint32_t);
@@ -117,12 +117,12 @@ index e80db07..71a56bd 100644
  export RECT gRect;
 +export bool gLEDownsample = false;   // Liberty Edge: window at monitor size, game renders above it
 +export bool gLEPlusReady = false;    // Liberty Edge: SMAA+ shaders compiled
-+export constexpr const char* gLEVersion = "0.3.2";
++export constexpr const char* gLEVersion = "0.4";
  export bool bDynamicShadowsForTrees = true;
  export bool bLoadingShown = false;
  export int nTimecycleUnpauseTimer = 0;
 diff --git a/source/extrainfo.ixx b/source/extrainfo.ixx
-index 816d5ce..f1cc172 100644
+index 816d5ce..de3fa2c 100644
 --- a/source/extrainfo.ixx
 +++ b/source/extrainfo.ixx
 @@ -7,6 +7,7 @@ export module extrainfo;
@@ -142,7 +142,7 @@ index 816d5ce..f1cc172 100644
                                  auto ens = CText::getText("FF_WARN2");
                                  if (ens[0])
                                  {
-@@ -139,6 +142,28 @@ public:
+@@ -139,6 +142,29 @@ public:
                                  auto FF_WARN1 = CText::getText("FF_WARN1");
                                  if (imgNum >= imgArrSize) extra += FF_WARN1[0] ? FF_WARN1 : L"; ~r~WARNING: 255 IMG limit exceeded, will cause streaming issues.";
  
@@ -153,7 +153,8 @@ index 816d5ce..f1cc172 100644
 +                                    auto a = std::clamp(aa->get(), 0, 4);
 +                                    RECT cr = {};
 +                                    if (gWnd) GetClientRect(gWnd, &cr);
-+                                    auto inW = getWindowWidth(), inH = getWindowHeight();
++                                    LONG inW = LEBackBufferWidth() ? (LONG)LEBackBufferWidth() : getWindowWidth();
++                                    LONG inH = LEBackBufferHeight() ? (LONG)LEBackBufferHeight() : getWindowHeight();
 +                                    auto outW = cr.right > 0 ? cr.right : inW, outH = cr.bottom > 0 ? cr.bottom : inH;
 +                                    extra += L"~n~";
 +                                    extra += L"                        ";
@@ -165,18 +166,120 @@ index 816d5ce..f1cc172 100644
 +                                        extra += std::format(L" (supersampling {:.2f}x{})", (double(inW) * inH) / (double(outW) * outH),
 +                                            LEDownsampleActive() ? L", box filter" : L", DXVK scaling only");
 +                                    else if (gLEDownsample)
-+                                        extra += L" (Downsample on: set a game resolution above the monitor)";
++                                        extra += L" (Downsample on: pick a Video Mode above your monitor, e.g. 3840x2160)";
 +                                }
 +
                                  auto FF_RESTART = CText::getText("FF_RESTART");
                                  if (FF_RESTART[0])
                                  {
+diff --git a/source/fusiondxhook.ixx b/source/fusiondxhook.ixx
+index fe24dca..5675710 100644
+--- a/source/fusiondxhook.ixx
++++ b/source/fusiondxhook.ixx
+@@ -210,6 +210,53 @@ private:
+ };
+ 
+ export SafetyHookInline CreateDeviceOriginal = {};
++export SafetyHookInline GetAdapterModeCountOriginal = {};
++export SafetyHookInline EnumAdapterModesOriginal = {};
++
++// Liberty Edge: virtual resolutions above the monitor (like NVIDIA DSR / AMD VSR) when [LIBERTYEDGE] Downsample = 1,
++// so they can be picked in the game's Video Mode menu and survive device resets.
++struct LEVirtualModes
++{
++    bool init = false;
++    bool enabled = false;
++    std::vector<D3DDISPLAYMODE> extra;
++    UINT nativeCount = 0;
++};
++static LEVirtualModes& leModes() { static LEVirtualModes m; return m; }
++static void leBuildModes(LPDIRECT3D9 d3d, UINT adapter, D3DFORMAT fmt, UINT nativeCount)
++{
++    auto& m = leModes();
++    if (!m.init)
++    {
++        CIniReader iniReader("");
++        m.enabled = iniReader.ReadInteger("LIBERTYEDGE", "Downsample", 0) != 0;
++        m.init = true;
++    }
++    m.extra.clear();
++    m.nativeCount = nativeCount;
++    if (!m.enabled || nativeCount == 0)
++        return;
++    D3DDISPLAYMODE best = {};
++    for (UINT i = 0; i < nativeCount; i++)
++    {
++        D3DDISPLAYMODE dm = {};
++        if (EnumAdapterModesOriginal.unsafe_stdcall<HRESULT>(d3d, adapter, fmt, i, &dm) == D3D_OK)
++            if (dm.Width * dm.Height > best.Width * best.Height || (dm.Width == best.Width && dm.Height == best.Height && dm.RefreshRate > best.RefreshRate))
++                best = dm;
++    }
++    if (!best.Width || !best.Height)
++        return;
++    // keep the monitor's aspect ratio: 1.5x, 2x (and 3x up to 6K wide)
++    for (float s : { 1.5f, 2.0f, 3.0f })
++    {
++        D3DDISPLAYMODE dm = best;
++        dm.Width = UINT(best.Width * s + 0.5f) & ~1u;
++        dm.Height = UINT(best.Height * s + 0.5f) & ~1u;
++        if (dm.Width > 7680 || dm.Height > 4320)
++            continue;
++        m.extra.push_back(dm);
++    }
++}
+ export SafetyHookInline BeginSceneOriginal = {};
+ export SafetyHookInline EndSceneOriginal = {};
+ export SafetyHookInline ResetOriginal = {};
+@@ -322,6 +369,25 @@ public:
+                     return res;
+                 };
+ 
++                auto D3D9GetAdapterModeCount = [](LPDIRECT3D9 pDirect3D9, UINT Adapter, D3DFORMAT Format) -> UINT
++                {
++                    UINT n = GetAdapterModeCountOriginal.unsafe_stdcall<UINT>(pDirect3D9, Adapter, Format);
++                    leBuildModes(pDirect3D9, Adapter, Format, n);
++                    return n + (UINT)leModes().extra.size();
++                };
++
++                auto D3D9EnumAdapterModes = [](LPDIRECT3D9 pDirect3D9, UINT Adapter, D3DFORMAT Format, UINT Mode, D3DDISPLAYMODE* pMode) -> HRESULT
++                {
++                    auto& m = leModes();
++                    if (m.enabled && Mode >= m.nativeCount && Mode < m.nativeCount + m.extra.size() && pMode)
++                    {
++                        *pMode = m.extra[Mode - m.nativeCount];
++                        pMode->Format = Format;
++                        return D3D_OK;
++                    }
++                    return EnumAdapterModesOriginal.unsafe_stdcall<HRESULT>(pDirect3D9, Adapter, Format, Mode, pMode);
++                };
++
+                 auto D3D9BeginScene = [](LPDIRECT3DDEVICE9 pDevice) -> HRESULT
+                 {
+                     FusionFix::D3D9::onBeginScene().executeAll(pDevice);
+@@ -412,6 +478,8 @@ public:
+                 };
+ 
+                 static HRESULT(WINAPI* CreateDevice)(LPDIRECT3D9, UINT, D3DDEVTYPE, HWND, DWORD, D3DPRESENT_PARAMETERS*, IDirect3DDevice9**) = D3D9CreateDevice;
++                static UINT(WINAPI* GetAdapterModeCount)(LPDIRECT3D9, UINT, D3DFORMAT) = D3D9GetAdapterModeCount;
++                static HRESULT(WINAPI* EnumAdapterModes)(LPDIRECT3D9, UINT, D3DFORMAT, UINT, D3DDISPLAYMODE*) = D3D9EnumAdapterModes;
+                 static HRESULT(WINAPI* BeginScene)(LPDIRECT3DDEVICE9) = D3D9BeginScene;
+                 static HRESULT(WINAPI* EndScene)(LPDIRECT3DDEVICE9) = D3D9EndScene;
+                 static HRESULT(WINAPI* Reset)(LPDIRECT3DDEVICE9, D3DPRESENT_PARAMETERS*) = D3D9Reset;
+@@ -426,6 +494,8 @@ public:
+                 static HRESULT(WINAPI* CreateVertexShader)(LPDIRECT3DDEVICE9, DWORD*, IDirect3DVertexShader9**) = D3D9CreateVertexShader;
+ 
+                 bind(hD3D9, typeid(IDirect3D9VTBL), IDirect3D9VTBL().GetIndex("CreateDevice"), CreateDevice, CreateDeviceOriginal);
++                bind(hD3D9, typeid(IDirect3D9VTBL), IDirect3D9VTBL().GetIndex("GetAdapterModeCount"), GetAdapterModeCount, GetAdapterModeCountOriginal);
++                bind(hD3D9, typeid(IDirect3D9VTBL), IDirect3D9VTBL().GetIndex("EnumAdapterModes"), EnumAdapterModes, EnumAdapterModesOriginal);
+                 bind(hD3D9, typeid(IDirect3DDevice9VTBL), IDirect3DDevice9VTBL().GetIndex("BeginScene"), BeginScene, BeginSceneOriginal);
+                 bind(hD3D9, typeid(IDirect3DDevice9VTBL), IDirect3DDevice9VTBL().GetIndex("EndScene"), EndScene, EndSceneOriginal);
+                 bind(hD3D9, typeid(IDirect3DDevice9VTBL), IDirect3DDevice9VTBL().GetIndex("Reset"), Reset, ResetOriginal);
 diff --git a/source/ledownsample.ixx b/source/ledownsample.ixx
 new file mode 100644
-index 0000000..59727a4
+index 0000000..83f2783
 --- /dev/null
 +++ b/source/ledownsample.ixx
-@@ -0,0 +1,287 @@
+@@ -0,0 +1,291 @@
 +module;
 +
 +#include <common.hxx>
@@ -275,6 +378,7 @@ index 0000000..59727a4
 +
 +public:
 +    static inline bool active = false; // last frame was filtered (shown in the menu footer)
++    static inline UINT backW = 0, backH = 0; // real backbuffer size seen at the end of the last frame
 +
 +    static void Shutdown()
 +    {
@@ -288,7 +392,7 @@ index 0000000..59727a4
 +    static void Render(IDirect3DDevice9* device)
 +    {
 +        active = false;
-+        if (!gLEDownsample) { reason(1, "off (Downsample = 0 in the ini)"); return; }
++        if (!gLEDownsample) { reason(1, "off (Downsample = 0 in the ini)"); backW = backH = 0; return; }
 +        if (!device || !gWnd) { reason(2, "no device/window yet"); return; }
 +        if (failed) return;
 +
@@ -314,6 +418,7 @@ index 0000000..59727a4
 +
 +        D3DSURFACE_DESC desc{};
 +        backBuffer->GetDesc(&desc);
++        backW = desc.Width; backH = desc.Height;
 +        if (desc.Width <= (UINT)cr.right && desc.Height <= (UINT)cr.bottom)
 +        {
 +            backBuffer->Release();
@@ -464,6 +569,8 @@ index 0000000..59727a4
 +} LEDownsample;
 +
 +export bool LEDownsampleActive() { return LEDownsample::active; }
++export UINT LEBackBufferWidth() { return LEDownsample::backW; }
++export UINT LEBackBufferHeight() { return LEDownsample::backH; }
 diff --git a/source/postfx.ixx b/source/postfx.ixx
 index a6abeb9..0d792aa 100644
 --- a/source/postfx.ixx

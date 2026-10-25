@@ -28,8 +28,9 @@ fica em `LibertyEdge.log`, na pasta do jogo.
 
 ### Supersampling / Downsample (experimental)
 Renderiza o jogo acima da resolução do monitor (ex.: 3840×2160) e reduz para a tela, como o DSR/VSR.
-Com `Downsample = 1`, janela sem borda e `-width 3840 -height 2160` nas opções de inicialização,
-a janela fica do tamanho do monitor e a imagem é reduzida para a tela.
+Com `Downsample = 1` e janela sem borda, o menu **Gráficos → Modo de vídeo** passa a oferecer resoluções
+acima do monitor (1,5×, 2× e 3×, ex.: 2880×1620 e 3840×2160 num monitor 1080p), como o DSR/VSR.
+A escolha fica salva e sobrevive a alt-tab/reset; não precisa de opções de inicialização.
 
 O DXVK, sozinho, reduz pegando **1 de cada 4 pixels** (para escalas inteiras o blit de apresentação
 lê um único texel por pixel de saída), o que joga fora o supersampling. Desde a v0.3 o Liberty Edge faz a
@@ -46,13 +47,14 @@ RageShaderEditor, e o CI confere se a ferramenta reproduz o arquivo original ant
 
 ### Rodapé de informações
 Na aba **Gráficos** do menu de pausa aparece uma linha como a do FusionFix:
-`Liberty Edge v0.2: AA SMAA+; Internal 3840x2160 -> Output 1920x1080 (supersampling 4.00x)`.
+`Liberty Edge v0.4: AA SMAA+; Internal 3840x2160 -> Output 1920x1080 (supersampling 4.00x, box filter)`.
+A resolução interna é a do backbuffer real no último quadro.
 
 ## Instalação
 
 Requisitos: GTA IV Complete Edition (1.2.0.59), **FusionFix 5.1.2** instalado.
 
-1. Baixe o `LibertyEdge.zip` da última build (aba **Actions** → build mais recente → *Artifacts*).
+1. Baixe o `LibertyEdge.zip` da release **nightly** (aba **Releases**).
 2. Extraia a pasta `LibertyEdge` **dentro da pasta do jogo** (ao lado do `GTAIV.exe`).
 3. Rode `LibertyEdge\install.bat`. Ele faz backup do FusionFix original, instala o `.asi` e
    acrescenta a seção `[LIBERTYEDGE]` ao `GTAIV.EFLC.FusionFix.ini` e instala os
