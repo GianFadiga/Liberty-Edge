@@ -1,117 +1,51 @@
-# Liberty Edge
+# Liberty Edge — Resolution Unlock
 
-Melhorias de anti-serrilhado para **GTA IV: The Complete Edition** em 1080p, construídas sobre o
-[FusionFix](https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix) e compatíveis com o
-[modpack da Gillian](https://gillian-guide.github.io/).
+Supersampling para **GTA IV: The Complete Edition** em placas que não têm DSR/VSR no driver
+(ex.: **Intel Arc**). O jogo passa a renderizar acima da resolução do monitor e a imagem é reduzida
+para a tela, o que diminui bastante o serrilhado.
 
-> Anti-aliasing improvements for GTA IV built on top of FusionFix 5.1.2. Everything is optional,
-> configurable in the FusionFix ini and reversible.
+> Supersampling for GTA IV on GPUs without a driver-level DSR/VSR (e.g. Intel Arc): adds resolutions above
+> the monitor to the game's Video Mode menu and downsamples them properly to the screen. Standalone ASI.
 
-## O que tem
-
-### SMAA+ (pronto)
-Novas opções no menu do jogo, em **Gráficos → Anti-aliasing**: `Off / FXAA / SMAA / SMAA+ / SMAA+ Debug`.
-Dá para alternar com o jogo rodando e comparar na hora. `SMAA+ Debug` mostra a máscara de bordas
-(vermelho/verde = bordas tratadas, azul = bordas de profundidade).
-
-| | SMAA do FusionFix | SMAA+ |
-|---|---|---|
-| Detecção de bordas | brilho (luma) | cor |
-| Usa a profundidade da cena | não | sim: mais forte em silhuetas, mais leve em textura |
-| Sensibilidade em silhuetas/fios/grades | 0.05 | 0.03 |
-| Sensibilidade em detalhe de textura | 0.05 | 0.10 |
-| Busca ao longo da borda | 16 / 8 diagonal | 32 / 16 diagonal |
-
-Roda antes do HUD (radar, textos e menus não são afetados) e custa praticamente nada.
-Se o shader do SMAA+ não compilar, o jogo usa o SMAA original, o rodapé avisa e o motivo
-fica em `LibertyEdge.log`, na pasta do jogo.
-
-### Supersampling / Downsample (experimental)
-Renderiza o jogo acima da resolução do monitor (ex.: 3840×2160) e reduz para a tela, como o DSR/VSR.
-Com `Downsample = 1` e janela sem borda, o menu **Gráficos → Modo de vídeo** passa a oferecer resoluções
-acima do monitor (1,5×, 2× e 3×, ex.: 2880×1620 e 3840×2160 num monitor 1080p), como o DSR/VSR.
-A escolha fica salva e sobrevive a alt-tab/reset; não precisa de opções de inicialização.
-
-O DXVK, sozinho, reduz pegando **1 de cada 4 pixels** (para escalas inteiras o blit de apresentação
-lê um único texel por pixel de saída), o que joga fora o supersampling. Desde a v0.3 o Liberty Edge faz a
-redução no fim do quadro, depois do HUD: cada pixel de saída vira a média (em luz linear) dos pixels que
-ele cobre, e o DXVK só repassa o resultado. O rodapé mostra `box filter` quando isso está ativo.
-
-Desde a v0.5 o filtro funciona certo em qualquer escala (inclusive 1,5×, em que o DXVK mistura dois
-pixels vizinhos): cada pixel recebe o valor do pixel de saída que mais o lê, e a média usa 2×2 ou 3×3
-amostras conforme a escala. Depois da redução vem uma nitidez adaptativa ao contraste (no estilo do
-AMD CAS), controlada por `Sharpen` (0 desliga), que compensa a leve suavidade da média.
-
-### Wire AA (em teste)
-Os fios de eletricidade do PC são desenhados no modo "deferred", que não tem o engrossamento por
-distância que o próprio jogo usa no modo antigo; por isso eles viram tracejados ao longe. O Liberty Edge
-substitui o `gta_wire.fxc` do FusionFix por uma versão em que o fio nunca fica mais fino que 1 pixel
-de saída e a parte "que sobra" é compensada por pontilhado (o filtro de stipple do FusionFix e o SMAA
-suavizam o pontilhado). O shader é gerado pelo CI a partir do código do FusionShaders com o
-RageShaderEditor, e o CI confere se a ferramenta reproduz o arquivo original antes de aplicar a mudança.
-
-### Rodapé de informações
-Na aba **Gráficos** do menu de pausa aparece uma linha como a do FusionFix:
-`Liberty Edge v0.5: AA SMAA+; Internal 3840x2160 -> Output 1920x1080 (supersampling 4.00x, box filter + sharpen 0.30)`.
-A resolução interna é a do backbuffer real no último quadro.
-
-### Preset Ultimate
-`LibertyEdge\preset_ULTIMATE.bat` aplica de uma vez (com backup em `LibertyEdge\backup\preset\`):
-
-| Ajuste | Valor | Por quê |
-|---|---|---|
-| `[SHADOWS] CascadeBlendSize` | 0.4 (era 0.1) | a troca entre as faixas de sombra (o "quadrado" que carrega em volta do personagem/carro) vira uma transição gradual |
-| `[SHADOWS] HighResolutionShadows` | 1 | mapa de sombras com o dobro da resolução: sombras distantes menos borradas e serrilhadas (pesado) |
-| `LamppostShadows` (menu) | 1 | postes voltam a projetar sombra à noite |
-| `[LIBERTYEDGE] Downsample` / `Sharpen` | 1 / 0.3 | supersampling com filtro próprio e nitidez |
-
-`preset_RESTAURAR.bat` volta o ini/cfg de antes. O alcance das sombras em si não aumenta: os
-desenvolvedores do FusionFix já o estenderam e consideram ir além inviável (issue #1635).
-No jogo, complete com: Modo de vídeo 3840×2160 (2880×1620 se pesar), Anti-aliasing SMAA+,
-Sombras Muito alta, Distância de visão/detalhe entre 70 e 100.
-
-### Mods recomendados (não incluídos)
-- Texturas: Higher Resolution Vehicle Pack (Nexus 282), LC Roads and Highways (169). Com supersampling
-  em 4K a textura melhor aparece bem.
-- Liberty's Shadows (Nexus 1459): sombras dinâmicas de faróis/vitrines/semáforos. Testado pelo autor no
-  FusionFix 5.1.1 e checa versão; com o Liberty Edge ainda não foi verificado.
-- Não recomendados na Arc: RTX Remix (feito para NVIDIA), ENB/iCEnhancer (conflitam com Vulkan/FusionFix).
+## O que faz
+- Acrescenta ao menu **Gráficos → Modo de vídeo** resoluções acima do monitor: 1,5×, 2× e 3×
+  (num monitor 1080p: 2880×1620, 3840×2160, 5760×3240). A escolha fica salva pelo próprio jogo.
+- Mantém a janela do tamanho do monitor e corrige a posição do mouse no menu e no mapa.
+- Faz a redução para a tela com um filtro próprio: média em luz linear de todos os pixels renderizados,
+  seguida de uma nitidez leve (estilo AMD CAS). Sem isso, o DXVK aproveita só 1 de cada 4 pixels em 2×.
+- É um `.asi` independente: não substitui nem depende de uma versão específica do FusionFix.
 
 ## Instalação
+1. Baixe `LibertyEdge.ResolutionUnlock.zip` da release **latest** (aba Releases).
+2. Extraia na pasta do jogo (a pasta `plugins` do zip vai ao lado do `GTAIV.exe`). Precisa de um ASI
+   loader; o FusionFix já instala um.
+3. No jogo: modo **Janela sem borda** (Borderless Windowed). Em tela cheia exclusiva o mod troca
+   para janela automaticamente.
+4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. Na Arc B580, 2880×1620 foi o
+   melhor equilíbrio; 3840×2160 é mais nítido e mais pesado.
 
-Requisitos: GTA IV Complete Edition (1.2.0.59), **FusionFix 5.1.2** instalado.
+Para desinstalar, apague `plugins\LibertyEdge.ResolutionUnlock.asi` e volte o Modo de vídeo para a
+resolução do monitor.
 
-1. Baixe o `LibertyEdge.zip` da release **nightly** (aba **Releases**).
-2. Extraia a pasta `LibertyEdge` **dentro da pasta do jogo** (ao lado do `GTAIV.exe`).
-3. Rode `LibertyEdge\install.bat`. Ele faz backup do FusionFix original, instala o `.asi` e
-   acrescenta a seção `[LIBERTYEDGE]` ao `GTAIV.EFLC.FusionFix.ini` e instala os
-   `frontend_menus.xml` do FusionFix com as novas opções de menu (os originais ficam no backup).
-4. No jogo: **Gráficos → Anti-aliasing → SMAA+**.
+## Configuração (`plugins\LibertyEdge.ResolutionUnlock.ini`)
+| Chave | Padrão | |
+|---|---|---|
+| `Scales` | `1.5, 2, 3` | múltiplos da resolução do monitor oferecidos no menu |
+| `Filter` | `1` | redução com filtro próprio (0 = deixa para o DXVK/driver) |
+| `Sharpen` | `0.3` | nitidez após a redução (0 desliga, até 1) |
+| `FitWindow`, `MouseFix`, `ForceWindowed` | `1` | janela no tamanho do monitor, mouse, tela cheia → janela |
 
-Para desinstalar: `LibertyEdge\uninstall.bat` (restaura o `.asi` e o `.ini` do backup).
+Diagnóstico em `LibertyEdge.ResolutionUnlock.log`, na pasta do jogo.
 
-## Configuração (`plugins\GTAIV.EFLC.FusionFix.ini`)
+## Notas
+- Testado em GTA IV CE 1.2.0.59 com FusionFix e a API gráfica Vulkan (DXVK), Intel Arc B580, monitor 1080p.
+- O custo é o de renderizar na resolução escolhida: 2× por eixo = 4× os pixels.
+- Histórico: este repositório começou como um conjunto de patches de anti-serrilhado sobre o FusionFix
+  (SMAA+, fios). Isso foi abandonado; o que ficou é o supersampling, que foi o que funcionou. O código
+  antigo continua no histórico do git.
 
-```ini
-[LIBERTYEDGE]
-TextureThreshold = 0.10      ; maior = texturas mais nítidas
-GeometryThreshold = 0.03     ; menor = mais AA em silhuetas, postes, fios
-DepthEdgeSensitivity = 0.08  ; salto relativo de profundidade que conta como silhueta
-SearchSteps = 32
-SearchStepsDiagonal = 16
-Downsample = 1               ; supersampling: escolha um Modo de vídeo acima do monitor
-Sharpen = 0.3                ; nitidez depois da redução (0 = desliga)
-```
-
-`[POSTFX] EnablePreAlphaDepth = 1` (padrão do FusionFix) é necessário para a parte de profundidade.
-
-## Como é construído
-
-O repositório não copia o FusionFix: o GitHub Actions baixa o FusionFix na versão fixada
-(`FUSIONFIX_REF` em `.github/workflows/build.yml`), aplica os patches de `patches/`, valida os
-shaders com `fxc` e compila em Windows. O resultado é o artefato `LibertyEdge.zip`.
+## Build
+GitHub Actions (Windows, MSVC x86): compila o shader com `fxc` e o `.asi` com MinHook, e publica a release `latest`.
 
 ## Licença
-
-GPL-3.0, como o FusionFix, do qual este projeto é derivado. SMAA © 2013 Jorge Jimenez et al. (MIT).
-Não redistribui arquivos do jogo nem de outros mods.
+GPL-3.0. MinHook © Tsuda Kageyu (BSD-2-Clause).

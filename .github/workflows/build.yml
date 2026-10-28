@@ -1,4 +1,4 @@
-name: Build Liberty Edge
+name: Build Resolution Unlock
 
 on:
   push:
@@ -6,168 +6,60 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  FUSIONFIX_REF: v5.1.2
-  LE_VERSION: 5.1.2.6
-
 permissions:
   contents: write
+
+env:
+  MINHOOK_REF: v1.3.4
 
 jobs:
   build:
     runs-on: windows-2025-vs2026
-
     steps:
-    - name: Keep line endings as-is (patches are LF)
-      run: git config --global core.autocrlf false
+    - uses: actions/checkout@v7
 
-    - name: Checkout Liberty Edge
-      uses: actions/checkout@v7
-      with:
-        path: le
-
-    - name: Checkout FusionFix ${{ env.FUSIONFIX_REF }}
-      uses: actions/checkout@v7
-      with:
-        repository: ThirteenAG/GTAIV.EFLC.FusionFix
-        ref: ${{ env.FUSIONFIX_REF }}
-        path: fusionfix
-        submodules: recursive
-
-    - name: Apply Liberty Edge patches
+    - name: Get MinHook ${{ env.MINHOOK_REF }}
       shell: bash
-      working-directory: fusionfix
-      run: |
-        set -e
-        for p in ../le/patches/*.patch; do
-          echo "Applying $p"
-          git apply --whitespace=nowarn "$p"
-        done
-        git diff --stat
+      run: git clone --depth 1 --branch "$MINHOOK_REF" https://github.com/TsudaKageyu/minhook.git minhook || git clone --depth 1 https://github.com/TsudaKageyu/minhook.git minhook
 
-    - name: Validate SMAA+ shader variants with fxc
+    - uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+
+    - name: Compile downsample shader (ps_3_0)
       shell: cmd
-      working-directory: fusionfix
+      run: fxc /nologo /T ps_3_0 /E main /O3 /Vn g_main /Fh src\downsample_ps.h src\downsample.hlsl
+
+    - name: Build ASI (Win32)
+      shell: cmd
       run: |
-        set FXC=source\dxsdk\lib\x86\fxc.exe
-        set SRC=source\resources\SMAA.hlsl
-        set D=/D LE_SMAAPLUS=1 /D LE_TEX_THRESHOLD=0.1000 /D LE_GEO_THRESHOLD=0.0300 /D LE_DEPTH_REL=0.0800 /D LE_SEARCH_STEPS=32 /D LE_SEARCH_STEPS_DIAG=16
-        for %%P in (0 1) do for %%G in (0 1) do (
-          echo === predication=%%P debug=%%G
-          %FXC% /nologo /T ps_3_0 /E DX9_SMAALumaEdgeDetectionPS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
-          %FXC% /nologo /T ps_3_0 /E DX9_SMAABlendingWeightCalculationPS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
-          %FXC% /nologo /T ps_3_0 /E DX9_SMAANeighborhoodBlendingPS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
-          %FXC% /nologo /T vs_3_0 /E DX9_SMAAEdgeDetectionVS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
-          %FXC% /nologo /T vs_3_0 /E DX9_SMAABlendingWeightCalculationVS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
-          %FXC% /nologo /T vs_3_0 /E DX9_SMAANeighborhoodBlendingVS %D% /D LE_PREDICATION=%%P /D LE_DEBUG=%%G /Fo NUL %SRC% || exit /b 1
-        )
-
-    - name: Validate supersampling downsample effect with fxc
-      shell: pwsh
-      working-directory: fusionfix
-      run: |
-        $src = Get-Content source/ledownsample.ixx -Raw
-        $m = [regex]::Match($src, 'kDownsampleFx = R"\((.*?)\)";', 'Singleline')
-        if (-not $m.Success) { throw "effect text not found" }
-        Set-Content -Path $env:RUNNER_TEMP/le_downsample.fx -Value $m.Groups[1].Value -Encoding ascii
-        & source\dxsdk\lib\x86\fxc.exe /nologo /T fx_2_0 /Fo NUL $env:RUNNER_TEMP/le_downsample.fx
-        if ($LASTEXITCODE -ne 0) { throw "downsample effect does not compile" }
-
-    - name: Smoke test preset_ULTIMATE (preset.ps1) on a copy of the FusionFix ini
-      shell: pwsh
-      run: |
-        $t = Join-Path $env:RUNNER_TEMP 'presettest'
-        New-Item -ItemType Directory -Force -Path "$t/plugins", "$t/LibertyEdge" | Out-Null
-        Copy-Item fusionfix/data/plugins/GTAIV.EFLC.FusionFix.ini "$t/plugins/"
-        Set-Content "$t/plugins/GTAIV.EFLC.FusionFix.cfg" "[MAIN]`r`nWindowed=1`r`n[SHADOWS]`r`nShadowFilter=2`r`nLamppostShadows=0`r`n"
-        Copy-Item le/installer/preset.ps1 "$t/LibertyEdge/"
-        & pwsh -NoProfile -File "$t/LibertyEdge/preset.ps1" -Mode ultimate
-        $ini = Get-Content "$t/plugins/GTAIV.EFLC.FusionFix.ini" -Raw
-        $cfg = Get-Content "$t/plugins/GTAIV.EFLC.FusionFix.cfg" -Raw
-        if ($ini -notmatch '(?m)^CascadeBlendSize = 0\.4\s') { throw "CascadeBlendSize not set" }
-        if ($ini -notmatch '(?m)^HighResolutionShadows = 1\s') { throw "HighResolutionShadows not set" }
-        if ($ini -notmatch '(?m)^Sharpen = 0\.3\s') { throw "Sharpen not set" }
-        if ($cfg -notmatch '(?m)^LamppostShadows=1') { throw "LamppostShadows not set" }
-        if ([System.IO.File]::ReadAllBytes("$t/plugins/GTAIV.EFLC.FusionFix.ini")[0] -eq 0xEF) { throw "BOM written" }
-        & pwsh -NoProfile -File "$t/LibertyEdge/preset.ps1" -Mode restore
-        if ((Get-Content "$t/plugins/GTAIV.EFLC.FusionFix.ini" -Raw) -ne (Get-Content fusionfix/data/plugins/GTAIV.EFLC.FusionFix.ini -Raw)) { throw "restore mismatch" }
-        Write-Host "preset OK"
-
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@main
-
-    - name: Configure build
-      working-directory: fusionfix
-      run: ./premake5 vs2026 --with-version=${{ env.LE_VERSION }}
-
-    - name: Build
-      working-directory: fusionfix
-      run: msbuild -m build/GTAIV.EFLC.FusionFix.slnx /property:Configuration=Release /property:Platform=Win32
-
-    - name: Build Wire AA shader (gta_wire.fxc)
-      shell: pwsh
-      run: |
-        $rse = (Resolve-Path fusionfix/tools/RageShaderEditor/RageShaderEditor.exe).Path
-        $sh = (Resolve-Path fusionfix/shaders/GTAIV.EFLC.FusionShaders).Path
-        $xml = Join-Path $sh 'win32_30_nv8/gta_wire.fxc.xml'
-        $out = Join-Path $sh 'win32_30_nv8/gta_wire.fxc'
-        function Build-Fxc {
-          if (Test-Path $out) { Remove-Item $out }
-          $p = Start-Process -FilePath $rse -ArgumentList "`"$xml`"" -WorkingDirectory (Split-Path $rse) -PassThru -NoNewWindow
-          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "RageShaderEditor timed out" }
-          if (-not (Test-Path $out)) { throw "RageShaderEditor did not produce gta_wire.fxc (exit $($p.ExitCode))" }
-        }
-        # 1) sanity check: the unmodified source must reproduce FusionFix 5.1.2's shipped gta_wire.fxc
-        Build-Fxc
-        $stock = (Get-FileHash $out -Algorithm SHA256).Hash.ToLower()
-        $expected = '4c55d8a6e4254ee0a761c494c4e76e7d291d9a4f8f02f7c3dc52fe9c337dba1a'
-        if ($stock -eq $expected) { Write-Host "Toolchain check OK: stock gta_wire.fxc reproduced" } else { Write-Host "::warning::stock gta_wire.fxc differs from FusionFix 5.1.2 ($stock)" }
-        # 2) Liberty Edge Wire AA
-        git -C $sh apply --whitespace=nowarn (Resolve-Path le/patches/fusionshaders/0001-wire-aa.patch).Path
-        if ($LASTEXITCODE -ne 0) { throw "wire patch did not apply" }
-        Build-Fxc
-        New-Item -ItemType Directory -Force -Path wireaa | Out-Null
-        Copy-Item $out wireaa/gta_wire.fxc
-        Get-FileHash wireaa/gta_wire.fxc | Format-List
+        mkdir out
+        cl /nologo /O2 /MT /EHsc /std:c++17 /W3 /DNDEBUG /Iminhook\include /Isrc src\main.cpp minhook\src\buffer.c minhook\src\hook.c minhook\src\trampoline.c minhook\src\hde\hde32.c /LD /Fe:out\LibertyEdge.ResolutionUnlock.asi /link user32.lib
+        if errorlevel 1 exit /b 1
+        dumpbin /headers out\LibertyEdge.ResolutionUnlock.asi | findstr /C:"machine (x86)"
 
     - name: Package
       shell: pwsh
       run: |
-        $asi = Get-ChildItem -Path fusionfix -Recurse -Filter GTAIV.EFLC.FusionFix.asi | Where-Object { $_.FullName -notmatch '\\data\\' } | Select-Object -First 1
-        if (-not $asi) { throw "GTAIV.EFLC.FusionFix.asi not found" }
-        Write-Host "asi: $($asi.FullName)"
-        New-Item -ItemType Directory -Force -Path pkg/LibertyEdge | Out-Null
-        Copy-Item le/installer/* pkg/LibertyEdge/ -Recurse
-        New-Item -ItemType Directory -Force -Path pkg/LibertyEdge/files/plugins | Out-Null
-        Copy-Item $asi.FullName pkg/LibertyEdge/files/plugins/
-        foreach ($m in @('update/common/data', 'update/TBoGT/common/data', 'update/TLAD/common/data')) {
-          New-Item -ItemType Directory -Force -Path "pkg/LibertyEdge/files/$m" | Out-Null
-          Copy-Item "fusionfix/data/$m/frontend_menus.xml" "pkg/LibertyEdge/files/$m/"
-        }
-        New-Item -ItemType Directory -Force -Path pkg/LibertyEdge/files/update/common/shaders/win32_30 | Out-Null
-        Copy-Item wireaa/gta_wire.fxc pkg/LibertyEdge/files/update/common/shaders/win32_30/
-        New-Item -ItemType Directory -Force -Path pkg/LibertyEdge/wireaa | Out-Null
-        Copy-Item wireaa/gta_wire.fxc pkg/LibertyEdge/wireaa/
-        Copy-Item le/README.md pkg/LibertyEdge/
-        Copy-Item le/LICENSE pkg/LibertyEdge/
-        Get-FileHash pkg/LibertyEdge/files/plugins/GTAIV.EFLC.FusionFix.asi | Format-List
-        (Get-Item pkg/LibertyEdge/files/plugins/GTAIV.EFLC.FusionFix.asi).VersionInfo | Format-List FileVersion,ProductVersion
-        Compress-Archive -Path pkg/LibertyEdge -DestinationPath LibertyEdge.zip
+        New-Item -ItemType Directory -Force -Path pkg/plugins | Out-Null
+        Copy-Item out/LibertyEdge.ResolutionUnlock.asi pkg/plugins/
+        Copy-Item LibertyEdge.ResolutionUnlock.ini pkg/plugins/
+        Copy-Item README.md, LICENSE pkg/
+        Compress-Archive -Path pkg/* -DestinationPath LibertyEdge.ResolutionUnlock.zip
+        Get-FileHash out/LibertyEdge.ResolutionUnlock.asi | Format-List
 
-    - name: Upload package
-      uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@v7
       with:
         archive: false
-        path: LibertyEdge.zip
+        path: LibertyEdge.ResolutionUnlock.zip
 
-    - name: Publish release (nightly for main, test-<branch> for other branches)
-      if: github.event_name == 'push'
+    - name: Publish release "latest" (main only)
+      if: github.event_name == 'push' && github.ref_name == 'main'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        if [ "$GITHUB_REF_NAME" = "main" ]; then TAG=nightly; else TAG="test-${GITHUB_REF_NAME//\//-}"; fi
-        gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-        gh release create "$TAG" LibertyEdge.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
-          --title "Liberty Edge ${TAG} (FusionFix ${FUSIONFIX_REF})" \
-          --notes "Build automatica do commit ${GITHUB_SHA}. Requer FusionFix ${FUSIONFIX_REF}. Extraia a pasta LibertyEdge ao lado do GTAIV.exe e rode LibertyEdge\\install.bat."
+        gh release delete latest --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        gh release create latest LibertyEdge.ResolutionUnlock.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+          --title "Liberty Edge Resolution Unlock (latest)" \
+          --notes "Build of ${GITHUB_SHA}. Extract into the GTA IV folder (the plugins folder goes next to GTAIV.exe), set the game to Borderless Windowed and pick a resolution above your monitor in Graphics > Video Mode."
