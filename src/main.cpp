@@ -13,6 +13,7 @@
 // Standalone ASI: no dependency on a specific FusionFix version. Loaded by any ASI loader (FusionFix ships one).
 
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <d3d9.h>
 #include <cstdio>
