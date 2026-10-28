@@ -60,6 +60,8 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         gh release delete latest --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        # old FusionFix-fork builds (no longer maintained)
+        for t in nightly test-wire-aa; do gh release delete "$t" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true; done
         gh release create latest LibertyEdge.ResolutionUnlock.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
           --title "Liberty Edge Resolution Unlock (latest)" \
           --notes "Build of ${GITHUB_SHA}. Extract into the GTA IV folder (the plugins folder goes next to GTAIV.exe), set the game to Borderless Windowed and pick a resolution above your monitor in Graphics > Video Mode."
