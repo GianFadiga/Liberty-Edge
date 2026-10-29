@@ -1,0 +1,68 @@
+name: FusionFix test build (contrib patch)
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'contrib/fusionfix-5.1.2-*.patch', '.github/workflows/fusionfix-test.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+    steps:
+    - name: Keep line endings as-is
+      run: git config --global core.autocrlf false
+
+    - uses: actions/checkout@v7
+      with:
+        path: le
+
+    - name: Checkout FusionFix v5.1.2
+      uses: actions/checkout@v7
+      with:
+        repository: ThirteenAG/GTAIV.EFLC.FusionFix
+        ref: v5.1.2
+        path: fusionfix
+        submodules: recursive
+
+    - name: Apply patch
+      shell: bash
+      working-directory: fusionfix
+      run: |
+        set -e
+        for p in ../le/contrib/fusionfix-5.1.2-*.patch; do echo "Applying $p"; git apply --whitespace=nowarn "$p"; done
+        git diff --stat
+
+    - uses: microsoft/setup-msbuild@main
+
+    - name: Configure
+      working-directory: fusionfix
+      run: ./premake5 vs2026 --with-version=5.1.2.100
+
+    - name: Build
+      working-directory: fusionfix
+      run: msbuild -m build/GTAIV.EFLC.FusionFix.slnx /property:Configuration=Release /property:Platform=Win32
+
+    - name: Package
+      shell: pwsh
+      run: |
+        $asi = Get-ChildItem -Path fusionfix -Recurse -Filter GTAIV.EFLC.FusionFix.asi | Where-Object { $_.FullName -notmatch '\\data\\' } | Select-Object -First 1
+        if (-not $asi) { throw "asi not found" }
+        New-Item -ItemType Directory -Force -Path pkg/plugins | Out-Null
+        Copy-Item $asi.FullName pkg/plugins/
+        Compress-Archive -Path pkg/* -DestinationPath FusionFix-5.1.2-turnindicators-test.zip
+        Get-FileHash pkg/plugins/GTAIV.EFLC.FusionFix.asi | Format-List
+
+    - name: Publish test release
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release delete fusionfix-turnindicators-test --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        gh release create fusionfix-turnindicators-test FusionFix-5.1.2-turnindicators-test.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+          --title "FusionFix 5.1.2 + automatic turn indicators with manual (test)" \
+          --notes "Test build of FusionFix 5.1.2 with contrib/fusionfix-5.1.2-turn-indicators-auto-with-manual.patch. Only for testing; the change is proposed upstream."
