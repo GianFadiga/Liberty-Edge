@@ -22,10 +22,12 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.2"
+#define LE_VERSION "1.3"
 
 namespace
 {
@@ -40,6 +42,7 @@ namespace
         bool mouseFix = true;
         bool forceWindowed = true;
         bool keyboardFix = true;
+        int overlayKey = VK_F11;
     } cfg;
 
     std::wstring gDir;
@@ -83,6 +86,7 @@ namespace
         cfg.mouseFix = getInt(L"MouseFix", 1) != 0;
         cfg.forceWindowed = getInt(L"ForceWindowed", 1) != 0;
         cfg.keyboardFix = getInt(L"KeyboardFix", 1) != 0;
+        cfg.overlayKey = (int)wcstol(getStr(L"ModListKey", L"0x7A").c_str(), nullptr, 0);
         cfg.sharpen = std::clamp((float)_wtof(getStr(L"Sharpen", L"0.3").c_str()), 0.0f, 1.0f);
         auto sc = getStr(L"Scales", L"1.5, 2, 3");
         std::vector<float> scales;
@@ -278,6 +282,270 @@ namespace
         return oActivateKeyboardLayout(hkl, flags);
     }
 
+    // The game reads the keyboard and mouse through DirectInput in background mode and translates keys with
+    // ToAsciiEx/ToUnicodeEx even when another program is in front, which also eats Windows' dead-key state
+    // (accents). While the game is not in the foreground: translation calls do nothing, and DirectInput
+    // reports no keys/buttons pressed.
+    using ToAsciiEx_t = int(WINAPI*)(UINT, UINT, const BYTE*, LPWORD, UINT, HKL);
+    using ToUnicodeEx_t = int(WINAPI*)(UINT, UINT, const BYTE*, LPWSTR, int, UINT, HKL);
+    ToAsciiEx_t oToAsciiEx = nullptr;
+    ToUnicodeEx_t oToUnicodeEx = nullptr;
+    int WINAPI hkToAsciiEx(UINT vk, UINT sc, const BYTE* ks, LPWORD out, UINT fl, HKL hkl)
+    {
+        if (cfg.keyboardFix && !GameInForeground()) return 0;
+        return oToAsciiEx(vk, sc, ks, out, fl, hkl);
+    }
+    int WINAPI hkToUnicodeEx(UINT vk, UINT sc, const BYTE* ks, LPWSTR out, int n, UINT fl, HKL hkl)
+    {
+        if (cfg.keyboardFix && !GameInForeground()) return 0;
+        return oToUnicodeEx(vk, sc, ks, out, n, fl, hkl);
+    }
+
+    using DI8Create_t = HRESULT(WINAPI*)(HINSTANCE, DWORD, REFIID, LPVOID*, LPUNKNOWN);
+    using DICreateDevice_t = HRESULT(WINAPI*)(void*, REFGUID, void**, LPUNKNOWN);
+    using DIGetDeviceState_t = HRESULT(WINAPI*)(void*, DWORD, LPVOID);
+    using DIGetDeviceData_t = HRESULT(WINAPI*)(void*, DWORD, LPDIDEVICEOBJECTDATA, LPDWORD, DWORD);
+    DI8Create_t oDI8Create = nullptr;
+    DICreateDevice_t oDICreateDeviceA = nullptr, oDICreateDeviceW = nullptr;
+    DIGetDeviceState_t oDIGetDeviceStateA = nullptr, oDIGetDeviceStateW = nullptr;
+    DIGetDeviceData_t oDIGetDeviceDataA = nullptr, oDIGetDeviceDataW = nullptr;
+
+    HRESULT StateFiltered(DIGetDeviceState_t o, void* dev, DWORD cb, LPVOID data)
+    {
+        HRESULT hr = o(dev, cb, data);
+        if (cfg.keyboardFix && data && !GameInForeground())
+        {
+            memset(data, 0, cb);
+            return DI_OK;
+        }
+        return hr;
+    }
+    HRESULT DataFiltered(DIGetDeviceData_t o, void* dev, DWORD cb, LPDIDEVICEOBJECTDATA data, LPDWORD inout, DWORD fl)
+    {
+        HRESULT hr = o(dev, cb, data, inout, fl);
+        if (cfg.keyboardFix && inout && !GameInForeground() && !(fl & DIGDD_PEEK))
+        {
+            *inout = 0;
+            return DI_OK;
+        }
+        return hr;
+    }
+    HRESULT WINAPI hkGetDeviceStateA(void* d, DWORD cb, LPVOID p) { return StateFiltered(oDIGetDeviceStateA, d, cb, p); }
+    HRESULT WINAPI hkGetDeviceStateW(void* d, DWORD cb, LPVOID p) { return StateFiltered(oDIGetDeviceStateW, d, cb, p); }
+    HRESULT WINAPI hkGetDeviceDataA(void* d, DWORD cb, LPDIDEVICEOBJECTDATA p, LPDWORD n, DWORD f) { return DataFiltered(oDIGetDeviceDataA, d, cb, p, n, f); }
+    HRESULT WINAPI hkGetDeviceDataW(void* d, DWORD cb, LPDIDEVICEOBJECTDATA p, LPDWORD n, DWORD f) { return DataFiltered(oDIGetDeviceDataW, d, cb, p, n, f); }
+
+    void PatchDIDevice(void* dev, bool wide)
+    {
+        // IDirectInputDevice8: 9 = GetDeviceState, 10 = GetDeviceData
+        if (wide)
+        {
+            if (auto o = PatchVtbl(dev, 9, (void*)&hkGetDeviceStateW)) oDIGetDeviceStateW = (DIGetDeviceState_t)o;
+            if (auto o = PatchVtbl(dev, 10, (void*)&hkGetDeviceDataW)) oDIGetDeviceDataW = (DIGetDeviceData_t)o;
+        }
+        else
+        {
+            if (auto o = PatchVtbl(dev, 9, (void*)&hkGetDeviceStateA)) oDIGetDeviceStateA = (DIGetDeviceState_t)o;
+            if (auto o = PatchVtbl(dev, 10, (void*)&hkGetDeviceDataA)) oDIGetDeviceDataA = (DIGetDeviceData_t)o;
+        }
+    }
+    HRESULT WINAPI hkDICreateDeviceA(void* di, REFGUID g, void** out, LPUNKNOWN u)
+    {
+        HRESULT hr = oDICreateDeviceA(di, g, out, u);
+        if (SUCCEEDED(hr) && out && *out) { PatchDIDevice(*out, false); static int n = 0; if (n++ < 6) Log("DirectInput device created (A): input blocked while the game is in the background"); }
+        return hr;
+    }
+    HRESULT WINAPI hkDICreateDeviceW(void* di, REFGUID g, void** out, LPUNKNOWN u)
+    {
+        HRESULT hr = oDICreateDeviceW(di, g, out, u);
+        if (SUCCEEDED(hr) && out && *out) { PatchDIDevice(*out, true); static int n = 0; if (n++ < 6) Log("DirectInput device created (W): input blocked while the game is in the background"); }
+        return hr;
+    }
+    HRESULT WINAPI hkDI8Create(HINSTANCE inst, DWORD ver, REFIID riid, LPVOID* out, LPUNKNOWN u)
+    {
+        HRESULT hr = oDI8Create(inst, ver, riid, out, u);
+        if (SUCCEEDED(hr) && out && *out && cfg.keyboardFix)
+        {
+            bool wide = IsEqualIID(riid, IID_IDirectInput8W) != 0;
+            // IDirectInput8: 3 = CreateDevice
+            if (wide) { if (auto o = PatchVtbl(*out, 3, (void*)&hkDICreateDeviceW)) oDICreateDeviceW = (DICreateDevice_t)o; }
+            else { if (auto o = PatchVtbl(*out, 3, (void*)&hkDICreateDeviceA)) oDICreateDeviceA = (DICreateDevice_t)o; }
+            Log("DirectInput8Create (%s)", wide ? "W" : "A");
+        }
+        return hr;
+    }
+
+    // ---------------------------------------------------------------- installed mods overlay (ModListKey, default F11)
+    std::vector<std::wstring> gModLines;
+    bool gOverlayOn = false;
+
+    std::wstring FileVersion(const std::wstring& path)
+    {
+        DWORD h = 0, n = GetFileVersionInfoSizeW(path.c_str(), &h);
+        if (!n) return L"";
+        std::vector<BYTE> b(n);
+        VS_FIXEDFILEINFO* fi = nullptr; UINT len = 0;
+        if (!GetFileVersionInfoW(path.c_str(), 0, n, b.data()) || !VerQueryValueW(b.data(), L"\\", (void**)&fi, &len) || !fi) return L"";
+        wchar_t v[64];
+        swprintf_s(v, L"  v%u.%u.%u.%u", HIWORD(fi->dwFileVersionMS), LOWORD(fi->dwFileVersionMS), HIWORD(fi->dwFileVersionLS), LOWORD(fi->dwFileVersionLS));
+        return v;
+    }
+
+    void ScanDir(const std::wstring& rel, const wchar_t* pattern, bool dirs, bool version, std::vector<std::wstring>& out)
+    {
+        WIN32_FIND_DATAW fd;
+        HANDLE h = FindFirstFileW((gDir + rel + pattern).c_str(), &fd);
+        if (h == INVALID_HANDLE_VALUE) return;
+        do
+        {
+            bool isDir = (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+            if (fd.cFileName[0] == L'.' || isDir != dirs) continue;
+            std::wstring line = L"   " + std::wstring(fd.cFileName);
+            if (version) line += FileVersion(gDir + rel + fd.cFileName);
+            out.push_back(line);
+        } while (FindNextFileW(h, &fd));
+        FindClose(h);
+    }
+
+    void BuildModList()
+    {
+        gModLines.clear();
+        gModLines.push_back(L"Installed mods   (" + std::wstring(L"F11 or ModListKey to close)"));
+        std::vector<std::wstring> v;
+        ScanDir(L"plugins\\", L"*.asi", false, true, v);
+        ScanDir(L"", L"*.asi", false, true, v);
+        ScanDir(L"scripts\\", L"*.asi", false, true, v);
+        gModLines.push_back(L"ASI plugins: " + std::to_wstring(v.size()));
+        gModLines.insert(gModLines.end(), v.begin(), v.end());
+        v.clear();
+        ScanDir(L"plugins\\", L"*.off", false, false, v);
+        ScanDir(L"plugins\\", L"*.disabled", false, false, v);
+        if (!v.empty()) { gModLines.push_back(L"Disabled: " + std::to_wstring(v.size())); gModLines.insert(gModLines.end(), v.begin(), v.end()); }
+        v.clear();
+        ScanDir(L"update\\", L"*", true, false, v);
+        gModLines.push_back(L"update folder (file replacements): " + std::to_wstring(v.size()));
+        gModLines.insert(gModLines.end(), v.begin(), v.end());
+        v.clear();
+        ScanDir(L"", L"*.dll", false, true, v);
+        gModLines.push_back(L"DLLs next to GTAIV.exe:");
+        gModLines.insert(gModLines.end(), v.begin(), v.end());
+    }
+
+    struct Overlay
+    {
+        IDirect3DTexture9* tex = nullptr;
+        UINT w = 0, h = 0; float scale = 0.0f;
+        bool keyDown = false;
+
+        void Release() { if (tex) { tex->Release(); tex = nullptr; } }
+
+        bool Build(IDirect3DDevice9* dev, float sc)
+        {
+            Release();
+            if (gModLines.empty()) BuildModList();
+            std::wstring text;
+            for (auto& l : gModLines) { text += l; text += L"\r\n"; }
+            HDC dc = CreateCompatibleDC(nullptr);
+            HFONT font = CreateFontW(-(int)(18 * sc), 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, ANTIALIASED_QUALITY, 0, L"Segoe UI");
+            HGDIOBJ oldF = SelectObject(dc, font);
+            RECT r = { 0, 0, 4000, 4000 };
+            DrawTextW(dc, text.c_str(), -1, &r, DT_CALCRECT | DT_NOPREFIX);
+            int pad = (int)(14 * sc);
+            w = r.right + 2 * pad; h = r.bottom + 2 * pad;
+            BITMAPINFO bi = {}; bi.bmiHeader = { sizeof(BITMAPINFOHEADER), (LONG)w, -(LONG)h, 1, 32, BI_RGB };
+            void* bits = nullptr;
+            HBITMAP bmp = CreateDIBSection(dc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+            bool ok = false;
+            if (bmp && bits)
+            {
+                HGDIOBJ oldB = SelectObject(dc, bmp);
+                memset(bits, 0, (size_t)w * h * 4);
+                SetBkMode(dc, TRANSPARENT);
+                SetTextColor(dc, RGB(255, 255, 255));
+                RECT tr = { pad, pad, (LONG)w - pad, (LONG)h - pad };
+                DrawTextW(dc, text.c_str(), -1, &tr, DT_NOPREFIX);
+                GdiFlush();
+                if (SUCCEEDED(dev->CreateTexture(w, h, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr)))
+                {
+                    D3DLOCKED_RECT lr;
+                    if (SUCCEEDED(tex->LockRect(0, &lr, nullptr, 0)))
+                    {
+                        for (UINT y = 0; y < h; y++)
+                        {
+                            const DWORD* src = (const DWORD*)bits + (size_t)y * w;
+                            DWORD* dst = (DWORD*)((BYTE*)lr.pBits + (size_t)y * lr.Pitch);
+                            for (UINT x = 0; x < w; x++)
+                            {
+                                DWORD l = (src[x] >> 8) & 0xFF;            // text coverage (green)
+                                DWORD a = 190 + l * 65 / 255;                // dark translucent panel + opaque text
+                                DWORD c = l;
+                                dst[x] = (a << 24) | (c << 16) | (c << 8) | c;
+                            }
+                        }
+                        tex->UnlockRect(0);
+                        ok = true;
+                    }
+                }
+                SelectObject(dc, oldB);
+                DeleteObject(bmp);
+            }
+            SelectObject(dc, oldF);
+            DeleteObject(font);
+            DeleteDC(dc);
+            scale = sc;
+            if (!ok) Release();
+            return ok;
+        }
+
+        void Run(IDirect3DDevice9* dev, IDirect3DStateBlock9* sb)
+        {
+            if (!cfg.overlayKey) return;
+            bool down = GameInForeground() && (GetAsyncKeyState(cfg.overlayKey) & 0x8000);
+            if (down && !keyDown) { gOverlayOn = !gOverlayOn; if (gOverlayOn) BuildModList(), Release(); }
+            keyDown = down;
+            if (!gOverlayOn || !sb) return;
+
+            IDirect3DSurface9* bb = nullptr;
+            if (FAILED(dev->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &bb)) || !bb) return;
+            D3DSURFACE_DESC d{}; bb->GetDesc(&d);
+            RECT cr = {}; float sc = 1.0f;
+            if (gWnd && GetClientRect(gWnd, &cr) && cr.right > 0) sc = std::max(1.0f, (float)d.Width / cr.right);
+            if (!tex || std::fabs(scale - sc) > 0.01f) Build(dev, sc);
+            if (!tex) { bb->Release(); return; }
+
+            sb->Capture();
+            IDirect3DSurface9* oldRT = nullptr; dev->GetRenderTarget(0, &oldRT);
+            dev->BeginScene();
+            dev->SetRenderTarget(0, bb);
+            dev->SetVertexShader(nullptr); dev->SetPixelShader(nullptr);
+            dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1);
+            dev->SetTexture(0, tex); dev->SetTexture(1, nullptr);
+            dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1); dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+            dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1); dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+            dev->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0); dev->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+            dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE); dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+            dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT); dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+            dev->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE); dev->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, FALSE);
+            const DWORD rs[][2] = {
+                { D3DRS_ZENABLE, FALSE }, { D3DRS_ZWRITEENABLE, FALSE }, { D3DRS_STENCILENABLE, FALSE }, { D3DRS_ALPHATESTENABLE, FALSE },
+                { D3DRS_ALPHABLENDENABLE, TRUE }, { D3DRS_SRCBLEND, D3DBLEND_SRCALPHA }, { D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA }, { D3DRS_BLENDOP, D3DBLENDOP_ADD },
+                { D3DRS_SEPARATEALPHABLENDENABLE, FALSE }, { D3DRS_CULLMODE, D3DCULL_NONE }, { D3DRS_COLORWRITEENABLE, 0xF }, { D3DRS_SRGBWRITEENABLE, FALSE },
+                { D3DRS_SCISSORTESTENABLE, FALSE }, { D3DRS_FOGENABLE, FALSE }, { D3DRS_LIGHTING, FALSE }, { D3DRS_CLIPPLANEENABLE, 0 }, { D3DRS_FILLMODE, D3DFILL_SOLID },
+            };
+            for (auto& s : rs) dev->SetRenderState((D3DRENDERSTATETYPE)s[0], s[1]);
+            struct V { float x, y, z, rhw, u, v; };
+            float x0 = 40.0f * sc - 0.5f, y0 = 40.0f * sc - 0.5f, x1 = x0 + w, y1 = y0 + h;
+            V q[4] = { { x0, y0, 0, 1, 0, 0 }, { x1, y0, 0, 1, 1, 0 }, { x0, y1, 0, 1, 0, 1 }, { x1, y1, 0, 1, 1, 1 } };
+            dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(V));
+            dev->EndScene();
+            dev->SetTexture(0, nullptr);
+            if (oldRT) { dev->SetRenderTarget(0, oldRT); oldRT->Release(); }
+            sb->Apply();
+            bb->Release();
+        }
+    } gOverlay;
+    IDirect3DStateBlock9* gOverlaySB = nullptr;
+
     // ---------------------------------------------------------------- virtual video modes
     using GetAdapterModeCount_t = UINT(WINAPI*)(IDirect3D9*, UINT, D3DFORMAT);
     using EnumAdapterModes_t = HRESULT(WINAPI*)(IDirect3D9*, UINT, D3DFORMAT, UINT, D3DDISPLAYMODE*);
@@ -469,6 +737,8 @@ namespace
 
     HRESULT WINAPI hkPresent(IDirect3DDevice9* dev, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty)
     {
+        if (!gOverlaySB) dev->CreateStateBlock(D3DSBT_ALL, &gOverlaySB);
+        gOverlay.Run(dev, gOverlaySB);
         gFilter.Run(dev, wnd);
         return oPresent(dev, src, dst, wnd, dirty);
     }
@@ -476,6 +746,7 @@ namespace
     HRESULT WINAPI hkReset(IDirect3DDevice9* dev, D3DPRESENT_PARAMETERS* pp)
     {
         gFilter.ReleaseDefault();
+        if (gOverlaySB) { gOverlaySB->Release(); gOverlaySB = nullptr; }
         PrepareParams(pp, "Reset");
         Subclass();
         HRESULT hr = oReset(dev, pp);
@@ -535,6 +806,11 @@ namespace
         MH_CreateHookApi(L"user32.dll", "SetWindowsHookExW", (void*)&hkSetWindowsHookExW, (void**)&oSetWindowsHookExW);
         MH_CreateHookApi(L"user32.dll", "LoadKeyboardLayoutA", (void*)&hkLoadKeyboardLayoutA, (void**)&oLoadKeyboardLayoutA);
         MH_CreateHookApi(L"user32.dll", "ActivateKeyboardLayout", (void*)&hkActivateKeyboardLayout, (void**)&oActivateKeyboardLayout);
+        MH_CreateHookApi(L"user32.dll", "ToAsciiEx", (void*)&hkToAsciiEx, (void**)&oToAsciiEx);
+        MH_CreateHookApi(L"user32.dll", "ToUnicodeEx", (void*)&hkToUnicodeEx, (void**)&oToUnicodeEx);
+        if (!GetModuleHandleW(L"dinput8.dll")) LoadLibraryW(L"dinput8.dll");
+        s = MH_CreateHookApi(L"dinput8.dll", "DirectInput8Create", (void*)&hkDI8Create, (void**)&oDI8Create);
+        if (s != MH_OK) Log("hook DirectInput8Create failed (%d)", (int)s);
         MH_EnableHook(MH_ALL_HOOKS);
     }
 }

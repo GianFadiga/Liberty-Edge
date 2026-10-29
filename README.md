@@ -13,10 +13,12 @@ para a tela, o que diminui bastante o serrilhado.
 - Mantém a janela do tamanho do monitor e corrige a posição do mouse no menu e no mapa.
 - Faz a redução para a tela com um filtro próprio: média em luz linear de todos os pixels renderizados,
   seguida de uma nitidez leve (estilo AMD CAS). Sem isso, o DXVK aproveita só 1 de cada 4 pixels em 2×.
-- Corrige um problema do próprio jogo: ele instala um "gancho" de teclado que vê tudo o que você digita
-  em qualquer programa. Com o jogo aberto, a acentuação (teclas mortas do ABNT2 e outros layouts) para de
-  funcionar no Windows inteiro e o jogo continua reagindo a teclas depois do alt-tab. O mod só repassa as
-  teclas ao jogo quando ele está em primeiro plano (`KeyboardFix`).
+- Corrige um problema do próprio jogo: ele lê teclado e mouse (DirectInput) mesmo com outro programa na
+  frente e converte as teclas em caracteres, o que consome as teclas de acento do Windows. Com o jogo aberto,
+  a acentuação (ABNT2 e outros layouts com teclas mortas) para de funcionar em todo lugar e o jogo continua
+  reagindo depois do alt-tab. O mod faz o jogo ignorar teclado e mouse fora de primeiro plano (`KeyboardFix`).
+- **Lista de mods instalados** dentro do jogo: aperte **F11** (`ModListKey`). Mostra os `.asi` (com versão),
+  as pastas de `update` e as DLLs ao lado do `GTAIV.exe`.
 - É um `.asi` independente: não substitui nem depende de uma versão específica do FusionFix.
 
 ## Instalação
@@ -38,7 +40,8 @@ resolução do monitor.
 | `Filter` | `1` | redução com filtro próprio (0 = deixa para o DXVK/driver) |
 | `Sharpen` | `0.3` | nitidez após a redução (0 desliga, até 1) |
 | `FitWindow`, `MouseFix`, `ForceWindowed` | `1` | janela no tamanho do monitor, mouse, tela cheia → janela |
-| `KeyboardFix` | `1` | jogo só lê o teclado quando está em primeiro plano (acentuação, alt-tab) |
+| `KeyboardFix` | `1` | jogo só lê teclado e mouse em primeiro plano (acentuação, alt-tab) |
+| `ModListKey` | `0x7A` (F11) | tecla da lista de mods instalados (0 desliga) |
 
 Diagnóstico em `LibertyEdge.ResolutionUnlock.log`, na pasta do jogo.
 
