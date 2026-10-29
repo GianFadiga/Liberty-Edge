@@ -1,0 +1,220 @@
+From 9f632343bbe8075465bbda72d667222d19dc649c Mon Sep 17 00:00:00 2001
+From: GianFadiga <gianluccafadigarissato@gmail.com>
+Date: Thu, 29 Oct 2026 20:36:47 -0300
+Subject: [PATCH] Turn indicators: optional automatic blinkers together with
+ manual ones (TURNINDICATORS.AutoWithManual)
+
+With ManualTurnIndicators on, the automatic steering-based blinkers were switched off entirely.
+AutoWithManual (default 0, editor-only like ManualTurnIndicators) keeps them running while no blinker or
+hazard was switched on by hand; a manual blinker takes priority until the player switches it off.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01J2EEBdczaXVKRDjePb6ox8
+---
+ settings/GTAIV.EFLC.FusionFix.de.json |  2 ++
+ settings/GTAIV.EFLC.FusionFix.en.json |  2 ++
+ settings/GTAIV.EFLC.FusionFix.es.json |  2 ++
+ settings/GTAIV.EFLC.FusionFix.fr.json |  2 ++
+ settings/GTAIV.EFLC.FusionFix.it.json |  2 ++
+ settings/GTAIV.EFLC.FusionFix.ja.json |  2 ++
+ settings/GTAIV.EFLC.FusionFix.json    |  5 +++++
+ settings/GTAIV.EFLC.FusionFix.ru.json |  2 ++
+ source/turnindicators.ixx             | 13 ++++++++++++-
+ 9 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/settings/GTAIV.EFLC.FusionFix.de.json b/settings/GTAIV.EFLC.FusionFix.de.json
+index 008bcca..7fce45f 100644
+--- a/settings/GTAIV.EFLC.FusionFix.de.json
++++ b/settings/GTAIV.EFLC.FusionFix.de.json
+@@ -333,6 +333,8 @@
+   "Tree Alpha": "Baumtransparenz",
+   "TreeFX": "Baumbeleuchtung",
+   "Turn Indicators": "Blinker",
++  "TURNINDICATORS.AutoWithManual": "Automatisch zusätzlich zu manuell",
++  "TURNINDICATORS.AutoWithManual.description": "Bei aktivierten manuellen Blinkern blinken sie beim Abbiegen auch automatisch, wie ohne sie; ein von Hand eingeschalteter Blinker hat Vorrang, bis er ausgeschaltet wird.",
+   "TURNINDICATORS.LeftIndicatorKey": "Taste für linken Blinker",
+   "TURNINDICATORS.LeftIndicatorKey.description": "Die Taste für den linken Blinker, ein Virtual-Key-Code (0xDB ist [).",
+   "TURNINDICATORS.ManualTurnIndicators": "Manuelle Blinker",
+diff --git a/settings/GTAIV.EFLC.FusionFix.en.json b/settings/GTAIV.EFLC.FusionFix.en.json
+index fecc2b9..a4ff755 100644
+--- a/settings/GTAIV.EFLC.FusionFix.en.json
++++ b/settings/GTAIV.EFLC.FusionFix.en.json
+@@ -333,6 +333,8 @@
+   "Tree Alpha": "Tree Alpha",
+   "TreeFX": "Tree Lighting",
+   "Turn Indicators": "Turn Indicators",
++  "TURNINDICATORS.AutoWithManual": "Automatic With Manual",
++  "TURNINDICATORS.AutoWithManual.description": "With Manual Turn Indicators on, also switch the indicators on by themselves when turning, as without them; a blinker switched on by hand takes priority until it is switched off.",
+   "TURNINDICATORS.LeftIndicatorKey": "Left Indicator Key",
+   "TURNINDICATORS.LeftIndicatorKey.description": "The key of the left turn indicator, a virtual-key code (0xDB is [).",
+   "TURNINDICATORS.ManualTurnIndicators": "Manual Turn Indicators",
+diff --git a/settings/GTAIV.EFLC.FusionFix.es.json b/settings/GTAIV.EFLC.FusionFix.es.json
+index 355adeb..379c1c0 100644
+--- a/settings/GTAIV.EFLC.FusionFix.es.json
++++ b/settings/GTAIV.EFLC.FusionFix.es.json
+@@ -333,6 +333,8 @@
+   "Tree Alpha": "Transparencia de árboles",
+   "TreeFX": "Iluminación de árboles",
+   "Turn Indicators": "Indicadores de giro",
++  "TURNINDICATORS.AutoWithManual": "Automáticos junto con manuales",
++  "TURNINDICATORS.AutoWithManual.description": "Con los intermitentes manuales activados, también se encienden solos al girar, como sin ellos; un intermitente encendido a mano tiene prioridad hasta que se apaga.",
+   "TURNINDICATORS.LeftIndicatorKey": "Tecla del intermitente izquierdo",
+   "TURNINDICATORS.LeftIndicatorKey.description": "La tecla del intermitente izquierdo, un código de tecla virtual (0xDB es [).",
+   "TURNINDICATORS.ManualTurnIndicators": "Intermitentes manuales",
+diff --git a/settings/GTAIV.EFLC.FusionFix.fr.json b/settings/GTAIV.EFLC.FusionFix.fr.json
+index 3fd8748..40e9d97 100644
+--- a/settings/GTAIV.EFLC.FusionFix.fr.json
++++ b/settings/GTAIV.EFLC.FusionFix.fr.json
+@@ -333,6 +333,8 @@
+   "Tree Alpha": "Alpha des arbres",
+   "TreeFX": "Éclairage des arbres",
+   "Turn Indicators": "Clignotants",
++  "TURNINDICATORS.AutoWithManual": "Automatiques avec manuels",
++  "TURNINDICATORS.AutoWithManual.description": "Avec les clignotants manuels activés, ils s'allument aussi seuls en tournant, comme sans eux ; un clignotant allumé à la main reste prioritaire jusqu'à ce qu'il soit éteint.",
+   "TURNINDICATORS.LeftIndicatorKey": "Touche du clignotant gauche",
+   "TURNINDICATORS.LeftIndicatorKey.description": "La touche du clignotant gauche, un code de touche virtuelle (0xDB est [).",
+   "TURNINDICATORS.ManualTurnIndicators": "Clignotants manuels",
+diff --git a/settings/GTAIV.EFLC.FusionFix.it.json b/settings/GTAIV.EFLC.FusionFix.it.json
+index fec01b5..a0c2407 100644
+--- a/settings/GTAIV.EFLC.FusionFix.it.json
++++ b/settings/GTAIV.EFLC.FusionFix.it.json
+@@ -333,6 +333,8 @@
+   "Tree Alpha": "Trasparenza degli alberi",
+   "TreeFX": "Illuminazione degli alberi",
+   "Turn Indicators": "Indicatori di direzione",
++  "TURNINDICATORS.AutoWithManual": "Automatici insieme ai manuali",
++  "TURNINDICATORS.AutoWithManual.description": "Con le frecce manuali attive, si accendono anche da sole in curva, come senza di esse; una freccia accesa a mano ha la precedenza finché non viene spenta.",
+   "TURNINDICATORS.LeftIndicatorKey": "Tasto indicatore sinistro",
+   "TURNINDICATORS.LeftIndicatorKey.description": "Il tasto dell'indicatore di direzione sinistro, un codice virtual-key (0xDB è [).",
+   "TURNINDICATORS.ManualTurnIndicators": "Indicatori di direzione manuali",
+diff --git a/settings/GTAIV.EFLC.FusionFix.ja.json b/settings/GTAIV.EFLC.FusionFix.ja.json
+index 6a25413..2948d6c 100644
+--- a/settings/GTAIV.EFLC.FusionFix.ja.json
++++ b/settings/GTAIV.EFLC.FusionFix.ja.json
+@@ -333,6 +333,8 @@
+   "Tree Alpha": "木の透過",
+   "TreeFX": "木のライティング",
+   "Turn Indicators": "ウィンカー",
++  "TURNINDICATORS.AutoWithManual": "手動と併用で自動",
++  "TURNINDICATORS.AutoWithManual.description": "手動ウインカーが有効でも、曲がる時に自動でウインカーを出します。手動で出したウインカーは消すまで優先されます。",
+   "TURNINDICATORS.LeftIndicatorKey": "左ウィンカーのキー",
+   "TURNINDICATORS.LeftIndicatorKey.description": "左ウィンカーのキーです。仮想キーコードで指定します（0xDBは[）。",
+   "TURNINDICATORS.ManualTurnIndicators": "手動ウィンカー",
+diff --git a/settings/GTAIV.EFLC.FusionFix.json b/settings/GTAIV.EFLC.FusionFix.json
+index 0728c38..63b14ba 100644
+--- a/settings/GTAIV.EFLC.FusionFix.json
++++ b/settings/GTAIV.EFLC.FusionFix.json
+@@ -798,6 +798,11 @@
+       "label": "@TURNINDICATORS.ManualTurnIndicators", "description": "@TURNINDICATORS.ManualTurnIndicators.description",
+       "page": "advanced", "group": "@group.turn indicators", "control": [ "switch", "cycler" ], "visibility": "editor", "apply": "restart"
+     },
++    {
++      "id": "TURNINDICATORS.AutoWithManual", "type": "bool", "default": 0,
++      "label": "@TURNINDICATORS.AutoWithManual", "description": "@TURNINDICATORS.AutoWithManual.description",
++      "page": "advanced", "group": "@group.turn indicators", "control": [ "switch", "cycler" ], "visibility": "editor", "apply": "restart"
++    },
+     {
+       "id": "TURNINDICATORS.LeftIndicatorKey", "type": "key", "default": "0xDB",
+       "label": "@TURNINDICATORS.LeftIndicatorKey", "description": "@TURNINDICATORS.LeftIndicatorKey.description",
+diff --git a/settings/GTAIV.EFLC.FusionFix.ru.json b/settings/GTAIV.EFLC.FusionFix.ru.json
+index 8af2c6d..801e818 100644
+--- a/settings/GTAIV.EFLC.FusionFix.ru.json
++++ b/settings/GTAIV.EFLC.FusionFix.ru.json
+@@ -333,6 +333,8 @@
+   "Tree Alpha": "Прозрачность деревьев",
+   "TreeFX": "Освещение деревьев",
+   "Turn Indicators": "Указатели поворота",
++  "TURNINDICATORS.AutoWithManual": "Автоматические вместе с ручными",
++  "TURNINDICATORS.AutoWithManual.description": "При включённых ручных указателях поворота они также включаются сами при повороте, как без них; включённый вручную указатель имеет приоритет, пока его не выключат.",
+   "TURNINDICATORS.LeftIndicatorKey": "Клавиша левого поворотника",
+   "TURNINDICATORS.LeftIndicatorKey.description": "Клавиша левого указателя поворота, код виртуальной клавиши (0xDB — это [).",
+   "TURNINDICATORS.ManualTurnIndicators": "Ручные указатели поворота",
+diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
+index ab7d6f9..6e152ed 100644
+--- a/source/turnindicators.ixx
++++ b/source/turnindicators.ixx
+@@ -38,6 +38,7 @@ struct VehicleState
+     float blink_timer = 0.0f;
+     float final_blink_timer = 0.0f;
+     bool manual_hazard = false;
++    bool manual_active = false; // a blinker the player switched on by hand (keeps automatic blinkers out until it is switched off)
+     int pending_blinker = 0;
+ };
+ 
+@@ -140,6 +141,7 @@ public:
+         {
+             SettingsReader reader;
+             static bool bManualTurnIndicators = reader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
++            static bool bAutoWithManual = reader.ReadInteger("TURNINDICATORS", "AutoWithManual", 0);
+             static uint32_t nLeftIndicatorKey = reader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
+             static uint32_t nRightIndicatorKey = reader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
+ 
+@@ -494,6 +496,7 @@ public:
+                                     state.blink_timer = 0.0f;
+                                     state.final_blink_timer = 0.0f;
+                                     state.pending_blinker = 0;
++                                    state.manual_active = false;
+                                 }
+                             }
+                             else if (lb_tapped)
+@@ -513,6 +516,7 @@ public:
+                                     state.blink_timer = 0.0f;
+                                     state.final_blink_timer = 0.0f;
+                                     state.pending_blinker = 0;
++                                    state.manual_active = false;
+                                 }
+                                 else
+                                 {
+@@ -522,6 +526,7 @@ public:
+                                         state.should_stop_blinking = true;
+                                         state.final_blink_timer = 0.0f;
+                                         state.pending_blinker = 1;
++                                        state.manual_active = true;
+                                     }
+                                     else
+                                     {
+@@ -532,6 +537,7 @@ public:
+                                         state.blink_state = true;
+                                         Natives::SetVehIndicatorlights(veh, true);
+                                         state.pending_blinker = 0;
++                                        state.manual_active = true;
+                                     }
+                                 }
+                             }
+@@ -552,6 +558,7 @@ public:
+                                     state.blink_timer = 0.0f;
+                                     state.final_blink_timer = 0.0f;
+                                     state.pending_blinker = 0;
++                                    state.manual_active = false;
+                                 }
+                                 else
+                                 {
+@@ -561,6 +568,7 @@ public:
+                                         state.should_stop_blinking = true;
+                                         state.final_blink_timer = 0.0f;
+                                         state.pending_blinker = 2;
++                                        state.manual_active = true;
+                                     }
+                                     else
+                                     {
+@@ -571,13 +579,16 @@ public:
+                                         state.blink_state = true;
+                                         Natives::SetVehIndicatorlights(veh, true);
+                                         state.pending_blinker = 0;
++                                        state.manual_active = true;
+                                     }
+                                 }
+                             }
+                             prev_lb_pressed = lb_pressed;
+                             prev_rb_pressed = rb_pressed;
+                         }
+-                        else
++                        // Automatic blinkers: without manual indicators, or together with them (AutoWithManual) while no
++                        // blinker or hazard was switched on by hand
++                        if (!bManualTurnIndicators || (bAutoWithManual && !state.manual_active && !state.manual_hazard))
+                         {
+                             // Process player vehicle with turn indicators
+                             auto m_fSteerAngle = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(vehicleStruct) + SteerAngleOffset);
+-- 
+2.43.0
+
