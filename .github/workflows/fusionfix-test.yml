@@ -53,6 +53,10 @@ jobs:
         if (-not $asi) { throw "asi not found" }
         New-Item -ItemType Directory -Force -Path pkg/plugins | Out-Null
         Copy-Item $asi.FullName pkg/plugins/
+        foreach ($m in @('update/common/data', 'update/TBoGT/common/data', 'update/TLAD/common/data')) {
+          New-Item -ItemType Directory -Force -Path "pkg/$m" | Out-Null
+          Copy-Item "fusionfix/data/$m/frontend_menus.xml" "pkg/$m/"
+        }
         Compress-Archive -Path pkg/* -DestinationPath FusionFix-5.1.2-turnindicators-test.zip
         Get-FileHash pkg/plugins/GTAIV.EFLC.FusionFix.asi | Format-List
 
@@ -64,5 +68,5 @@ jobs:
       run: |
         gh release delete fusionfix-turnindicators-test --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
         gh release create fusionfix-turnindicators-test FusionFix-5.1.2-turnindicators-test.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
-          --title "FusionFix 5.1.2 + automatic turn indicators with manual (test)" \
+          --title "FusionFix 5.1.2 + Turn Indicators: Off/Automatic/Manual/Manual + Auto (test)" \
           --notes "Test build of FusionFix 5.1.2 with contrib/fusionfix-5.1.2-turn-indicators-auto-with-manual.patch. Only for testing; the change is proposed upstream."

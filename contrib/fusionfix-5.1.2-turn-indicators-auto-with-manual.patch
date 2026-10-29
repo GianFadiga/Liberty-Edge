@@ -1,36 +1,171 @@
 diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
-index c575020..a8cb7dd 100644
+index c575020..6b07c0c 100644
 --- a/data/plugins/GTAIV.EFLC.FusionFix.ini
 +++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
-@@ -101,6 +101,7 @@ DisableDefaultLodLights = 1                   // disable default distant lights
+@@ -100,7 +100,7 @@ SlightlyIncreaseRadiusWithDistance = 1        // slight increase in corona radiu
+ DisableDefaultLodLights = 1                   // disable default distant lights
  
  [TURNINDICATORS]
- ManualTurnIndicators = 0                      // enable manual turn indicators, tap LB or RB on gamepad to activate
-+AutoWithManual = 0                            // with ManualTurnIndicators = 1: also blink automatically when turning; a manual blinker takes priority until switched off
+-ManualTurnIndicators = 0                      // enable manual turn indicators, tap LB or RB on gamepad to activate
++ManualTurnIndicators = 0                      // legacy: makes "Automatic" behave as "Manual". Use Game > Turn Indicators: Manual or Manual + Auto instead (tap LB/RB or the keys below)
  LeftIndicatorKey = 0xDB                       // VK_OEM_4, the Left Brace key
  RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
  
+diff --git a/data/update/TBoGT/common/data/frontend_menus.xml b/data/update/TBoGT/common/data/frontend_menus.xml
+index 8ecb165..7c1c2f4 100644
+--- a/data/update/TBoGT/common/data/frontend_menus.xml
++++ b/data/update/TBoGT/common/data/frontend_menus.xml
+@@ -414,6 +414,13 @@
+       <options text="Steam Deck" action="ACTION_NONE" value="6" />
+       <options text="FE_STEAMPAD" action="ACTION_NONE" value="7" />
+     </menupc>
++    <menupc enum="MENU_DISPLAY_TURNINDICATORS">
++      <options text="MO_OFF" action="ACTION_NONE" value="0" />
++      <options text="Automatic" action="ACTION_NONE" value="1" />
++      <options text="Manual" action="ACTION_NONE" value="2" />
++      <options text="Manual + Auto" action="ACTION_NONE" value="3" />
++    </menupc>
++
+     <menupc enum="MENU_DISPLAY_ANTIALIASING">
+       <options text="MO_OFF" action="ACTION_NONE" value="0" />
+       <options text="FXAA" action="ACTION_NONE" value="1" />
+@@ -524,7 +531,7 @@
+             <optionspc action="MENUOPT_ADJUST" label="Stunt Jump Cam" value="PREF_STUNTJUMPCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Action Cam" value="PREF_ACTIONCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_NONE" label="" value="PREF_NULL" scaler="0" displayValue="MENU_DISPLAY_NONE" />
+-            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
++            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="4" displayValue="MENU_DISPLAY_TURNINDICATORS" />
+             <optionspc action="MENUOPT_ADJUST" label="Bullet Traces" value="PREF_BULLETTRACES" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+ 			<optionspc action="MENUOPT_ADJUST" label="Wardrobe Fading" value="PREF_NOWARDROBEFADING" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+@@ -1357,7 +1364,7 @@
+             <optionspc action="MENUOPT_ADJUST" label="Stunt Jump Cam" value="PREF_STUNTJUMPCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Action Cam" value="PREF_ACTIONCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_NONE" label="" value="PREF_NULL" scaler="0" displayValue="MENU_DISPLAY_NONE" />
+-            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
++            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="4" displayValue="MENU_DISPLAY_TURNINDICATORS" />
+             <optionspc action="MENUOPT_ADJUST" label="Bullet Traces" value="PREF_BULLETTRACES" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+ 			<optionspc action="MENUOPT_ADJUST" label="Wardrobe Fading" value="PREF_NOWARDROBEFADING" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+diff --git a/data/update/TLAD/common/data/frontend_menus.xml b/data/update/TLAD/common/data/frontend_menus.xml
+index ffc6383..ac30988 100644
+--- a/data/update/TLAD/common/data/frontend_menus.xml
++++ b/data/update/TLAD/common/data/frontend_menus.xml
+@@ -490,6 +490,13 @@
+       <options text="Steam Deck" action="ACTION_NONE" value="6" />
+       <options text="FE_STEAMPAD" action="ACTION_NONE" value="7" />
+     </menupc>
++    <menupc enum="MENU_DISPLAY_TURNINDICATORS">
++      <options text="MO_OFF" action="ACTION_NONE" value="0" />
++      <options text="Automatic" action="ACTION_NONE" value="1" />
++      <options text="Manual" action="ACTION_NONE" value="2" />
++      <options text="Manual + Auto" action="ACTION_NONE" value="3" />
++    </menupc>
++
+     <menupc enum="MENU_DISPLAY_ANTIALIASING">
+       <options text="MO_OFF" action="ACTION_NONE" value="0" />
+       <options text="FXAA" action="ACTION_NONE" value="1" />
+@@ -600,7 +607,7 @@
+             <optionspc action="MENUOPT_ADJUST" label="Stunt Jump Cam" value="PREF_STUNTJUMPCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Action Cam" value="PREF_ACTIONCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_NONE" label="" value="PREF_NULL" scaler="0" displayValue="MENU_DISPLAY_NONE" />
+-            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
++            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="4" displayValue="MENU_DISPLAY_TURNINDICATORS" />
+             <optionspc action="MENUOPT_ADJUST" label="Bullet Traces" value="PREF_BULLETTRACES" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+ 			<optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Ladders Climb" value="PREF_AUTOCLIMBLADDERS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+@@ -1350,7 +1357,7 @@
+             <optionspc action="MENUOPT_ADJUST" label="Stunt Jump Cam" value="PREF_STUNTJUMPCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Action Cam" value="PREF_ACTIONCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_NONE" label="" value="PREF_NULL" scaler="0" displayValue="MENU_DISPLAY_NONE" />
+-            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
++            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="4" displayValue="MENU_DISPLAY_TURNINDICATORS" />
+             <optionspc action="MENUOPT_ADJUST" label="Bullet Traces" value="PREF_BULLETTRACES" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+ 			<optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Ladders Climb" value="PREF_AUTOCLIMBLADDERS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+diff --git a/data/update/common/data/frontend_menus.xml b/data/update/common/data/frontend_menus.xml
+index e58e210..0b4f1bf 100644
+--- a/data/update/common/data/frontend_menus.xml
++++ b/data/update/common/data/frontend_menus.xml
+@@ -347,6 +347,13 @@
+           <options text="FE_STEAMPAD" action="ACTION_NONE" value="7" />
+         </menupc>
+ 
++        <menupc enum="MENU_DISPLAY_TURNINDICATORS">
++          <options text="MO_OFF" action="ACTION_NONE" value="0" />
++          <options text="Automatic" action="ACTION_NONE" value="1" />
++          <options text="Manual" action="ACTION_NONE" value="2" />
++          <options text="Manual + Auto" action="ACTION_NONE" value="3" />
++        </menupc>
++
+         <menupc enum="MENU_DISPLAY_ANTIALIASING">
+           <options text="MO_OFF" action="ACTION_NONE" value="0" />
+           <options text="FXAA" action="ACTION_NONE" value="1" />
+@@ -465,7 +472,7 @@
+             <optionspc action="MENUOPT_ADJUST" label="Stunt Jump Cam" value="PREF_STUNTJUMPCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Action Cam" value="PREF_ACTIONCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_NONE" label="" value="PREF_NULL" scaler="0" displayValue="MENU_DISPLAY_NONE" />
+-            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
++            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="4" displayValue="MENU_DISPLAY_TURNINDICATORS" />
+             <optionspc action="MENUOPT_ADJUST" label="Bullet Traces" value="PREF_BULLETTRACES" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+ 			<optionspc action="MENUOPT_ADJUST" label="Wardrobe Fading" value="PREF_NOWARDROBEFADING" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+@@ -965,7 +972,7 @@
+             <optionspc action="MENUOPT_ADJUST" label="Stunt Jump Cam" value="PREF_STUNTJUMPCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Action Cam" value="PREF_ACTIONCAM" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_NONE" label="" value="PREF_NULL" scaler="0" displayValue="MENU_DISPLAY_NONE" />
+-            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
++            <optionspc action="MENUOPT_ADJUST" label="Turn Indicators" value="PREF_TURNINDICATORS" scaler="4" displayValue="MENU_DISPLAY_TURNINDICATORS" />
+             <optionspc action="MENUOPT_ADJUST" label="Bullet Traces" value="PREF_BULLETTRACES" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+ 			<optionspc action="MENUOPT_ADJUST" label="Wardrobe Fading" value="PREF_NOWARDROBEFADING" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+             <optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
+diff --git a/source/settings.ixx b/source/settings.ixx
+index 2642578..1437f79 100644
+--- a/source/settings.ixx
++++ b/source/settings.ixx
+@@ -1489,7 +1489,7 @@ public:
+             { 0, "PREF_CENTEREDCAMERAFOOT",     "MISC",       "CenteredFootCam",                    "",                           0, nullptr, 0, 1 },
+             { 0, "PREF_CAMERASHAKE",            "MAIN",       "CameraShake",                        "",                           1, nullptr, 0, 1 },
+             { 0, "PREF_CUTSCENEAUDIOSYNC",      "MAIN",       "CutsceneAudioSync",                  "MENU_DISPLAY_AUDIO_SYNC",                           0, nullptr, 0, 2 },
+-            { 0, "PREF_TURNINDICATORS",         "MISC",       "TurnIndicators",                     "",                           0, nullptr, 0, 1 },
++            { 0, "PREF_TURNINDICATORS",         "MISC",       "TurnIndicators",                     "",                           0, nullptr, 0, 3 },
+             { 0, "PREF_EXTRANIGHTSHADOWS",      "SHADOWS",    "ExtraNightShadows",                  "MENU_DISPLAY_EXTRA_NIGHT_SHADOWS",                           0, nullptr, 0, 3 },
+             { 0, "PREF_GRAPHICSAPI",            "MAIN",       "GraphicsAPI",                        "MENU_DISPLAY_GRAPHICS_API",                           0, nullptr, 0, 1 },
+             { 0, "PREF_BULLETTRACES",           "MISC",       "AlwaysShowBulletTraces",             "",                           0, nullptr, 0, 1 },
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index d90282d..c32db73 100644
+index d90282d..776a110 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
 @@ -38,6 +38,7 @@ struct VehicleState
      float blink_timer = 0.0f;
      float final_blink_timer = 0.0f;
      bool manual_hazard = false;
-+    bool manual_active = false; // a blinker the player switched on by hand (keeps automatic blinkers out until it is switched off)
++    bool manual_active = false; // a blinker the player switched on by hand (automatic blinkers stay out until it is switched off)
      int pending_blinker = 0;
  };
  
-@@ -140,6 +141,7 @@ public:
-         {
-             CIniReader iniReader("");
-             static bool bManualTurnIndicators = iniReader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
-+            static bool bAutoWithManual = iniReader.ReadInteger("TURNINDICATORS", "AutoWithManual", 0);
-             static uint32_t nLeftIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
-             static uint32_t nRightIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
+@@ -386,6 +387,11 @@ public:
+             FusionFix::onGameProcessEvent() += [&]()
+             {
+                 static auto ti = FusionFixSettings.GetRef("PREF_TURNINDICATORS");
++                // Turn Indicators: 0 Off, 1 Automatic, 2 Manual, 3 Manual + Automatic (changes apply live).
++                // [TURNINDICATORS] ManualTurnIndicators = 1 keeps its old meaning: Automatic becomes Manual.
++                const int tiMode = ti->get();
++                const bool bManualMode = tiMode == 2 || tiMode == 3 || (tiMode == 1 && bManualTurnIndicators);
++                const bool bAutoMode = tiMode == 3 || (tiMode == 1 && !bManualTurnIndicators);
+                 static Vehicle last_player_car = 0;
+                 static bool prev_lb_pressed = false;
+                 static bool prev_rb_pressed = false;
+@@ -458,7 +464,7 @@ public:
  
-@@ -494,6 +496,7 @@ public:
+                     if (player_in_vehicle && vehicleStruct)
+                     {
+-                        if (bManualTurnIndicators)
++                        if (bManualMode)
+                         {
+                             bool lb_pressed = Natives::IsButtonPressed(0, BUTTON_BUMPER_LEFT) || IsKeyboardKeyPressed(nLeftIndicatorKey);
+                             bool rb_pressed = Natives::IsButtonPressed(0, BUTTON_BUMPER_RIGHT) || IsKeyboardKeyPressed(nRightIndicatorKey);
+@@ -494,6 +500,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -38,7 +173,7 @@ index d90282d..c32db73 100644
                                  }
                              }
                              else if (lb_tapped)
-@@ -513,6 +516,7 @@ public:
+@@ -513,6 +520,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -46,7 +181,7 @@ index d90282d..c32db73 100644
                                  }
                                  else
                                  {
-@@ -522,6 +526,7 @@ public:
+@@ -522,6 +530,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 1;
@@ -54,7 +189,7 @@ index d90282d..c32db73 100644
                                      }
                                      else
                                      {
-@@ -532,6 +537,7 @@ public:
+@@ -532,6 +541,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -62,7 +197,7 @@ index d90282d..c32db73 100644
                                      }
                                  }
                              }
-@@ -552,6 +558,7 @@ public:
+@@ -552,6 +562,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -70,7 +205,7 @@ index d90282d..c32db73 100644
                                  }
                                  else
                                  {
-@@ -561,6 +568,7 @@ public:
+@@ -561,6 +572,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 2;
@@ -78,7 +213,7 @@ index d90282d..c32db73 100644
                                      }
                                      else
                                      {
-@@ -571,13 +579,16 @@ public:
+@@ -571,6 +583,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -86,13 +221,13 @@ index d90282d..c32db73 100644
                                      }
                                  }
                              }
-                             prev_lb_pressed = lb_pressed;
+@@ -578,6 +591,9 @@ public:
                              prev_rb_pressed = rb_pressed;
                          }
--                        else
-+                        // Automatic blinkers: without manual indicators, or together with them (AutoWithManual) while no
-+                        // blinker or hazard was switched on by hand
-+                        if (!bManualTurnIndicators || (bAutoWithManual && !state.manual_active && !state.manual_hazard))
+                         else
++                            state.manual_active = false;
++                        // Automatic blinkers (in Manual + Automatic only while no blinker or hazard was switched on by hand)
++                        if (bAutoMode && !state.manual_active && !state.manual_hazard)
                          {
                              // Process player vehicle with turn indicators
                              auto m_fSteerAngle = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(vehicleStruct) + SteerAngleOffset);
