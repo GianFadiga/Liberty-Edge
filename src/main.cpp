@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.3"
+#define LE_VERSION "1.4"
 
 namespace
 {
@@ -735,13 +735,39 @@ namespace
         }
     } gFilter;
 
-    HRESULT WINAPI hkPresent(IDirect3DDevice9* dev, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty)
+    void PerFrame(IDirect3DDevice9* dev, HWND wnd, const char* path)
     {
+        static const char* logged = nullptr;
+        if (logged != path) { logged = path; Log("frames presented through %s", path); }
         if (!gOverlaySB) dev->CreateStateBlock(D3DSBT_ALL, &gOverlaySB);
         gOverlay.Run(dev, gOverlaySB);
         gFilter.Run(dev, wnd);
+    }
+
+    // The game presents through IDirect3DSwapChain9::Present (not IDirect3DDevice9::Present), so both are hooked.
+    using SCPresent_t = HRESULT(WINAPI*)(IDirect3DSwapChain9*, const RECT*, const RECT*, HWND, const RGNDATA*, DWORD);
+    SCPresent_t oSCPresent = nullptr;
+    bool gInSCPresent = false;
+    HRESULT WINAPI hkSCPresent(IDirect3DSwapChain9* sc, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty, DWORD flags)
+    {
+        IDirect3DDevice9* dev = nullptr;
+        if (SUCCEEDED(sc->GetDevice(&dev)) && dev)
+        {
+            PerFrame(dev, wnd, "IDirect3DSwapChain9::Present");
+            dev->Release();
+        }
+        gInSCPresent = true;
+        HRESULT hr = oSCPresent(sc, src, dst, wnd, dirty, flags);
+        gInSCPresent = false;
+        return hr;
+    }
+
+    HRESULT WINAPI hkPresent(IDirect3DDevice9* dev, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty)
+    {
+        if (!gInSCPresent) PerFrame(dev, wnd, "IDirect3DDevice9::Present");
         return oPresent(dev, src, dst, wnd, dirty);
     }
+
 
     HRESULT WINAPI hkReset(IDirect3DDevice9* dev, D3DPRESENT_PARAMETERS* pp)
     {
@@ -765,6 +791,12 @@ namespace
         {
             if (auto o = PatchVtbl(*out, 16, (void*)&hkReset)) oReset = (Reset_t)o;
             if (auto o = PatchVtbl(*out, 17, (void*)&hkPresent)) oPresent = (Present_t)o;
+            IDirect3DSwapChain9* sc = nullptr;
+            if (SUCCEEDED((*out)->GetSwapChain(0, &sc)) && sc)
+            {
+                if (auto o = PatchVtbl(sc, 3, (void*)&hkSCPresent)) oSCPresent = (SCPresent_t)o;
+                sc->Release();
+            }
             Subclass();
             FitWindowNow();
         }
