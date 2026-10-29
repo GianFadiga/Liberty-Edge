@@ -25,7 +25,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.1"
+#define LE_VERSION "1.2"
 
 namespace
 {
@@ -39,6 +39,7 @@ namespace
         bool fitWindow = true;
         bool mouseFix = true;
         bool forceWindowed = true;
+        bool keyboardFix = true;
     } cfg;
 
     std::wstring gDir;
@@ -81,6 +82,7 @@ namespace
         cfg.fitWindow = getInt(L"FitWindow", 1) != 0;
         cfg.mouseFix = getInt(L"MouseFix", 1) != 0;
         cfg.forceWindowed = getInt(L"ForceWindowed", 1) != 0;
+        cfg.keyboardFix = getInt(L"KeyboardFix", 1) != 0;
         cfg.sharpen = std::clamp((float)_wtof(getStr(L"Sharpen", L"0.3").c_str()), 0.0f, 1.0f);
         auto sc = getStr(L"Scales", L"1.5, 2, 3");
         std::vector<float> scales;
@@ -90,8 +92,8 @@ namespace
             if (v > 1.01f && v <= 4.0f) scales.push_back(v);
         }
         if (!scales.empty()) cfg.scales = scales;
-        Log("Liberty Edge Resolution Unlock %s | Enabled=%d Filter=%d Sharpen=%.2f FitWindow=%d MouseFix=%d ForceWindowed=%d scales=%u",
-            LE_VERSION, cfg.enabled, cfg.filter, cfg.sharpen, cfg.fitWindow, cfg.mouseFix, cfg.forceWindowed, (unsigned)cfg.scales.size());
+        Log("Liberty Edge Resolution Unlock %s | Enabled=%d Filter=%d Sharpen=%.2f FitWindow=%d MouseFix=%d ForceWindowed=%d KeyboardFix=%d scales=%u",
+            LE_VERSION, cfg.enabled, cfg.filter, cfg.sharpen, cfg.fitWindow, cfg.mouseFix, cfg.forceWindowed, cfg.keyboardFix, (unsigned)cfg.scales.size());
     }
 
     // ---------------------------------------------------------------- shared state
@@ -209,6 +211,71 @@ namespace
             oSetWindowPos(gWnd, nullptr, m.left, m.top, m.right - m.left, m.bottom - m.top, SWP_NOZORDER | SWP_NOACTIVATE);
             Log("window fitted to the monitor (%ldx%ld)", m.right - m.left, m.bottom - m.top);
         }
+    }
+
+    // ---------------------------------------------------------------- keyboard (system-wide side effects)
+    // GTA IV installs a low-level keyboard hook that sees every key typed in any program and translates it
+    // with ToAsciiEx/ToUnicodeEx, which consumes Windows' dead-key state: accents (´ ~ ^ on ABNT2 and other
+    // layouts with dead keys) stop working everywhere while the game is open, and the game keeps reacting to
+    // keys after alt-tab. The game's hook procedure is now only called while the game is in the foreground.
+    // It also loads/activates keyboard layouts; activation is kept off so the user's layout is not changed.
+    using SetWindowsHookExA_t = HHOOK(WINAPI*)(int, HOOKPROC, HINSTANCE, DWORD);
+    using LoadKeyboardLayoutA_t = HKL(WINAPI*)(LPCSTR, UINT);
+    using ActivateKeyboardLayout_t = HKL(WINAPI*)(HKL, UINT);
+    SetWindowsHookExA_t oSetWindowsHookExA = nullptr, oSetWindowsHookExW = nullptr;
+    LoadKeyboardLayoutA_t oLoadKeyboardLayoutA = nullptr;
+    ActivateKeyboardLayout_t oActivateKeyboardLayout = nullptr;
+    HOOKPROC gGameKbdLL = nullptr, gGameMouseLL = nullptr;
+
+    bool GameInForeground()
+    {
+        HWND fg = GetForegroundWindow();
+        if (!fg) return false;
+        DWORD pid = 0;
+        GetWindowThreadProcessId(fg, &pid);
+        return pid == GetCurrentProcessId();
+    }
+
+    LRESULT CALLBACK KbdLLProc(int code, WPARAM wp, LPARAM lp)
+    {
+        if (code >= 0 && !GameInForeground()) return CallNextHookEx(nullptr, code, wp, lp);
+        return gGameKbdLL(code, wp, lp);
+    }
+
+    LRESULT CALLBACK MouseLLProc(int code, WPARAM wp, LPARAM lp)
+    {
+        if (code >= 0 && !GameInForeground()) return CallNextHookEx(nullptr, code, wp, lp);
+        return gGameMouseLL(code, wp, lp);
+    }
+
+    HHOOK WrapHook(SetWindowsHookExA_t orig, int id, HOOKPROC fn, HINSTANCE mod, DWORD tid, const char* api)
+    {
+        Log("%s(id %d, thread %lu)", api, id, (unsigned long)tid);
+        if (cfg.keyboardFix && fn)
+        {
+            if (id == WH_KEYBOARD_LL && (!gGameKbdLL || gGameKbdLL == fn)) { gGameKbdLL = fn; fn = &KbdLLProc; Log("  keyboard hook limited to when the game is in the foreground"); }
+            else if (id == WH_MOUSE_LL && (!gGameMouseLL || gGameMouseLL == fn)) { gGameMouseLL = fn; fn = &MouseLLProc; Log("  mouse hook limited to when the game is in the foreground"); }
+        }
+        return orig(id, fn, mod, tid);
+    }
+    HHOOK WINAPI hkSetWindowsHookExA(int id, HOOKPROC fn, HINSTANCE mod, DWORD tid) { return WrapHook(oSetWindowsHookExA, id, fn, mod, tid, "SetWindowsHookExA"); }
+    HHOOK WINAPI hkSetWindowsHookExW(int id, HOOKPROC fn, HINSTANCE mod, DWORD tid) { return WrapHook(oSetWindowsHookExW, id, fn, mod, tid, "SetWindowsHookExW"); }
+
+    HKL WINAPI hkLoadKeyboardLayoutA(LPCSTR klid, UINT flags)
+    {
+        UINT f = flags;
+        if (cfg.keyboardFix) f = (flags & ~(KLF_ACTIVATE | KLF_SETFORPROCESS | KLF_REORDER)) | KLF_NOTELLSHELL;
+        HKL h = oLoadKeyboardLayoutA(klid, f);
+        Log("LoadKeyboardLayoutA(%s, 0x%X -> 0x%X) = %p", klid ? klid : "null", flags, f, (void*)h);
+        return h;
+    }
+
+    HKL WINAPI hkActivateKeyboardLayout(HKL hkl, UINT flags)
+    {
+        static int n = 0;
+        if (n++ < 10) Log("ActivateKeyboardLayout(%p, 0x%X)%s", (void*)hkl, flags, cfg.keyboardFix ? " blocked" : "");
+        if (cfg.keyboardFix) return GetKeyboardLayout(0);
+        return oActivateKeyboardLayout(hkl, flags);
     }
 
     // ---------------------------------------------------------------- virtual video modes
@@ -464,6 +531,10 @@ namespace
         MH_CreateHookApi(L"user32.dll", "MoveWindow", (void*)&hkMoveWindow, (void**)&oMoveWindow);
         MH_CreateHookApi(L"user32.dll", "SetWindowPos", (void*)&hkSetWindowPos, (void**)&oSetWindowPos);
         MH_CreateHookApi(L"user32.dll", "ScreenToClient", (void*)&hkScreenToClient, (void**)&oScreenToClient);
+        MH_CreateHookApi(L"user32.dll", "SetWindowsHookExA", (void*)&hkSetWindowsHookExA, (void**)&oSetWindowsHookExA);
+        MH_CreateHookApi(L"user32.dll", "SetWindowsHookExW", (void*)&hkSetWindowsHookExW, (void**)&oSetWindowsHookExW);
+        MH_CreateHookApi(L"user32.dll", "LoadKeyboardLayoutA", (void*)&hkLoadKeyboardLayoutA, (void**)&oLoadKeyboardLayoutA);
+        MH_CreateHookApi(L"user32.dll", "ActivateKeyboardLayout", (void*)&hkActivateKeyboardLayout, (void**)&oActivateKeyboardLayout);
         MH_EnableHook(MH_ALL_HOOKS);
     }
 }

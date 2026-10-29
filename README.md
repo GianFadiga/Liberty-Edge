@@ -13,15 +13,18 @@ para a tela, o que diminui bastante o serrilhado.
 - Mantém a janela do tamanho do monitor e corrige a posição do mouse no menu e no mapa.
 - Faz a redução para a tela com um filtro próprio: média em luz linear de todos os pixels renderizados,
   seguida de uma nitidez leve (estilo AMD CAS). Sem isso, o DXVK aproveita só 1 de cada 4 pixels em 2×.
+- Corrige um problema do próprio jogo: ele instala um "gancho" de teclado que vê tudo o que você digita
+  em qualquer programa. Com o jogo aberto, a acentuação (teclas mortas do ABNT2 e outros layouts) para de
+  funcionar no Windows inteiro e o jogo continua reagindo a teclas depois do alt-tab. O mod só repassa as
+  teclas ao jogo quando ele está em primeiro plano (`KeyboardFix`).
 - É um `.asi` independente: não substitui nem depende de uma versão específica do FusionFix.
 
 ## Instalação
 1. Baixe `LibertyEdge.ResolutionUnlock.zip` da release **latest** (aba Releases).
 2. Extraia na pasta do jogo (a pasta `plugins` do zip vai ao lado do `GTAIV.exe`). Precisa de um ASI
    loader; o FusionFix já instala um.
-3. No jogo: **Jogo → Janela = Sim** e **Janela sem borda = Sim** (FusionFix). Isso é obrigatório na prática:
-   em tela cheia o mod troca para janela para não travar, mas o jogo continua achando que está em tela
-   cheia e segue lendo o teclado depois do alt-tab (o que também quebra a acentuação no Windows).
+3. No jogo (aba Jogo do FusionFix): **Janela sem borda = Sim**. Na Arc B580 funcionou com **Janela = Não**
+   e **Janela sem borda = Sim**. Em tela cheia exclusiva o mod troca para janela sozinho.
 4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. Na Arc B580, 2880×1620 foi o
    melhor equilíbrio; 3840×2160 é mais nítido e mais pesado.
 
@@ -35,8 +38,16 @@ resolução do monitor.
 | `Filter` | `1` | redução com filtro próprio (0 = deixa para o DXVK/driver) |
 | `Sharpen` | `0.3` | nitidez após a redução (0 desliga, até 1) |
 | `FitWindow`, `MouseFix`, `ForceWindowed` | `1` | janela no tamanho do monitor, mouse, tela cheia → janela |
+| `KeyboardFix` | `1` | jogo só lê o teclado quando está em primeiro plano (acentuação, alt-tab) |
 
 Diagnóstico em `LibertyEdge.ResolutionUnlock.log`, na pasta do jogo.
+
+## Mods recomendados junto
+- [FusionFix](https://www.nexusmods.com/gta4/mods/716): base recomendada (ASI loader, Vulkan, correções).
+- [Grass and Procedural Props Fix](https://www.nexusmods.com/gta4/mods/1230) (iammrmikeman): aumenta os limites de
+  grama, vegetação e objetos procedurais, que somem em manchas no jogo original. Copie o `.asi` e o `.ini` para
+  `plugins`; o autor recomenda Distância de detalhe = 100. Se aparecer objeto piscando, sumindo ou travamento,
+  volte o `.ini` para os valores padrão e veja o `GTAIV.EFLC.ProceduralFixes.log`.
 
 ## Notas
 - Testado em GTA IV CE 1.2.0.59 com FusionFix e a API gráfica Vulkan (DXVK), Intel Arc B580, monitor 1080p.
