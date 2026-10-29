@@ -28,8 +28,8 @@ para a tela, o que diminui bastante o serrilhado.
 3. No jogo (aba Jogo do FusionFix): **Janela = Não** e **Janela sem borda = Sim**. O mod transforma a tela cheia
    exclusiva em janela sem borda do tamanho do monitor (`ForceWindowed`), o que evita travar ao trocar de
    resolução e deixa o alt-tab limpo.
-4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. Na Arc B580, 2880×1620 foi o
-   melhor equilíbrio; 3840×2160 é mais nítido e mais pesado.
+4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. Na Arc B580, 3840×2160 roda estável
+   e é o mais nítido; 2880×1620 é a opção mais leve.
 
 Para desinstalar, apague `plugins\LibertyEdge.ResolutionUnlock.asi` e volte o Modo de vídeo para a
 resolução do monitor.
@@ -48,15 +48,31 @@ Diagnóstico em `LibertyEdge.ResolutionUnlock.log` (sessão atual) e `.prev.log`
 jogo. Se o jogo fechar com erro, `LibertyEdge.ResolutionUnlock.crash.log` registra em qual módulo (jogo, mod ou
 driver) aconteceu.
 
-## Mods recomendados junto
-- [FusionFix](https://www.nexusmods.com/gta4/mods/716): base recomendada (ASI loader, Vulkan, correções).
-- [Grass and Procedural Props Fix](https://www.nexusmods.com/gta4/mods/1230) (iammrmikeman): aumenta os limites de
-  grama, vegetação e objetos procedurais, que somem em manchas no jogo original. Copie o `.asi` e o `.ini` para
-  `plugins`; o autor recomenda Distância de detalhe = 100. Se aparecer objeto piscando, sumindo ou travamento,
-  volte o `.ini` para os valores padrão e veja o `GTAIV.EFLC.ProceduralFixes.log`.
+## Setup usado no desenvolvimento
+
+A base é o **TJGM's Drag n' Drop Archive** ([tjgm.dev](https://tjgm.dev/resources/gtaiv/TJGM%27s-Drag-n%27-Drop-Archive/),
+vídeo: [YouTube](https://www.youtube.com/watch?v=mxOyRadPzmI)), uma compilação vanilla+ simples de instalar, que
+serviu de ponto de partida para o projeto. Sobre ela, o setup ficou assim:
+
+| Mod | O que faz | Onde |
+|---|---|---|
+| [FusionFix](https://www.nexusmods.com/gta4/mods/716) (ThirteenAG e equipe) | correções, Vulkan (DXVK), opções gráficas, ASI loader | `plugins`, `update\GTAIV.EFLC.FusionFix` |
+| [Console Visuals](https://github.com/Tomasak/Console-Visuals) | vegetação, cercas, roupas e animações como no console | `update\ConsoleVisuals` |
+| [Various Fixes](https://www.nexusmods.com/gta4/mods/824) | correções de modelos e texturas do jogo | `update\Various Fixes` |
+| [Higher Resolution Vehicle Pack](https://www.nexusmods.com/gta4/mods/282) | texturas de veículos em alta resolução | `update\Ash_HiRes_VehiclesPack` |
+| [Higher Resolution Miscellaneous Pack](https://www.nexusmods.com/gta4/mods/357) | texturas diversas em alta resolução | `update\Ash_HiRes_Misc` |
+| [Grass and Procedural Props Fix](https://www.nexusmods.com/gta4/mods/1230) (iammrmikeman) | grama, vegetação e objetos procedurais não somem em manchas | `plugins` |
+| **Liberty Edge Resolution Unlock** (este) | supersampling para placas sem DSR/VSR, teclado, lista de mods | `plugins` |
+
+Testado em: GTA IV CE 1.2.0.59 (Steam), Intel Arc B580, monitor 1920×1080 @165 Hz, API gráfica Vulkan,
+jogando em **3840×2160 reduzido para 1080p** com desempenho estável.
+
+Sobre o Props Fix: o autor recomenda Distância de detalhe = 100. Se aparecer objeto piscando, sumindo ou travamento,
+volte o `.ini` dele para os valores padrão e veja o `GTAIV.EFLC.ProceduralFixes.log`.
+
+Não recomendados neste setup: RTX Remix (feito para NVIDIA), ENB/iCEnhancer (conflitam com Vulkan/FusionFix).
 
 ## Notas
-- Testado em GTA IV CE 1.2.0.59 com FusionFix e a API gráfica Vulkan (DXVK), Intel Arc B580, monitor 1080p.
 - O custo é o de renderizar na resolução escolhida: 2× por eixo = 4× os pixels.
 - Histórico: este repositório começou como um conjunto de patches de anti-serrilhado sobre o FusionFix
   (SMAA+, fios). Isso foi abandonado; o que ficou é o supersampling, que foi o que funcionou. O código
