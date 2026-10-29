@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.4"
+#define LE_VERSION "1.5"
 
 namespace
 {
@@ -70,6 +70,8 @@ namespace
         GetModuleFileNameW(nullptr, path, MAX_PATH);
         gDir = path;
         gDir = gDir.substr(0, gDir.find_last_of(L"\\/") + 1);
+        // keep the previous session's log (useful after a crash: the next launch would overwrite it)
+        MoveFileExW((gDir + L"LibertyEdge.ResolutionUnlock.log").c_str(), (gDir + L"LibertyEdge.ResolutionUnlock.prev.log").c_str(), MOVEFILE_REPLACE_EXISTING);
 
         auto getInt = [&](const wchar_t* k, int d) { return (int)GetPrivateProfileIntW(L"MAIN", k, d, ini.c_str()); };
         auto getStr = [&](const wchar_t* k, const wchar_t* d) {
@@ -105,6 +107,65 @@ namespace
     UINT gNativeW = 0, gNativeH = 0; // largest real mode of the monitor
     UINT gBackW = 0, gBackH = 0;  // current backbuffer size
     bool InVirtualMode() { return gNativeW && (gBackW > gNativeW || gBackH > gNativeH); }
+    bool gForcedWindowed = false; // the game asked for exclusive fullscreen and got a borderless window instead
+
+    // ---------------------------------------------------------------- crash log
+    // Writes where a crash happened (module + offset, plus return addresses found on the stack) to
+    // LibertyEdge.ResolutionUnlock.crash.log, so a crash can be attributed to the game, a mod or a driver.
+    std::wstring ModuleOf(DWORD_PTR addr, DWORD_PTR& base)
+    {
+        HMODULE m = nullptr; base = 0;
+        if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)addr, &m) || !m) return L"";
+        wchar_t p[MAX_PATH]; GetModuleFileNameW(m, p, MAX_PATH);
+        std::wstring n = p; n = n.substr(n.find_last_of(L"\\/") + 1);
+        base = (DWORD_PTR)m;
+        return n;
+    }
+
+    bool SafeRead(const DWORD_PTR* p, DWORD_PTR& v)
+    {
+        __try { v = *p; return true; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    LONG CALLBACK CrashHandler(PEXCEPTION_POINTERS ep)
+    {
+        DWORD code = ep->ExceptionRecord->ExceptionCode;
+        if (code != EXCEPTION_ACCESS_VIOLATION && code != EXCEPTION_STACK_OVERFLOW && code != EXCEPTION_ILLEGAL_INSTRUCTION &&
+            code != EXCEPTION_INT_DIVIDE_BY_ZERO && code != EXCEPTION_PRIV_INSTRUCTION && code != 0xC0000409)
+            return EXCEPTION_CONTINUE_SEARCH;
+        static LONG n = 0;
+        if (InterlockedIncrement(&n) > 8) return EXCEPTION_CONTINUE_SEARCH;
+        FILE* f = nullptr;
+        if (_wfopen_s(&f, (gDir + L"LibertyEdge.ResolutionUnlock.crash.log").c_str(), L"a") != 0 || !f) return EXCEPTION_CONTINUE_SEARCH;
+        SYSTEMTIME t; GetLocalTime(&t);
+        DWORD_PTR ip = (DWORD_PTR)ep->ExceptionRecord->ExceptionAddress, base = 0;
+        std::wstring mod = ModuleOf(ip, base);
+        fprintf(f, "%04u-%02u-%02u %02u:%02u:%02u  exception 0x%08lX at %ls+0x%lX (thread %lu, backbuffer %ux%u, forced windowed %d)\n",
+            t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, code, mod.empty() ? L"?" : mod.c_str(), (unsigned long)(ip - base),
+            GetCurrentThreadId(), gBackW, gBackH, (int)gForcedWindowed);
+        if (code == EXCEPTION_ACCESS_VIOLATION && ep->ExceptionRecord->NumberParameters >= 2)
+            fprintf(f, "  %s address 0x%08lX\n", ep->ExceptionRecord->ExceptionInformation[0] == 8 ? "execute" : ep->ExceptionRecord->ExceptionInformation[0] ? "write to" : "read from",
+                (unsigned long)ep->ExceptionRecord->ExceptionInformation[1]);
+#ifdef _M_IX86
+        DWORD_PTR* sp = (DWORD_PTR*)ep->ContextRecord->Esp;
+        int found = 0;
+        for (int i = 0; i < 512 && found < 12; i++)
+        {
+            DWORD_PTR v = 0;
+            if (!SafeRead(sp + i, v)) break;
+            MEMORY_BASIC_INFORMATION mbi;
+            if (v < 0x10000 || !VirtualQuery((void*)v, &mbi, sizeof(mbi)) || !(mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE))) continue;
+            DWORD_PTR b = 0; std::wstring m = ModuleOf(v, b);
+            if (m.empty()) continue;
+            fprintf(f, "  stack: %ls+0x%lX\n", m.c_str(), (unsigned long)(v - b));
+            found++;
+        }
+#endif
+        fprintf(f, "  (first-chance: the game may still have handled it)\n");
+        fclose(f);
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
 
     void* PatchVtbl(void* obj, int idx, void* fn)
     {
@@ -210,7 +271,12 @@ namespace
     {
         if (!gWnd) return;
         RECT wr, m;
-        if (GetWindowRect(gWnd, &wr) && ShouldFit(gWnd, wr.right - wr.left, wr.bottom - wr.top, m))
+        if (gForcedWindowed && GetWindowRect(gWnd, &wr) && MonitorRect(gWnd, m) && !EqualRect(&wr, &m))
+        {
+            oSetWindowPos(gWnd, HWND_TOP, m.left, m.top, m.right - m.left, m.bottom - m.top, SWP_NOACTIVATE);
+            Log("borderless window placed over the monitor (%ldx%ld)", m.right - m.left, m.bottom - m.top);
+        }
+        else if (GetWindowRect(gWnd, &wr) && ShouldFit(gWnd, wr.right - wr.left, wr.bottom - wr.top, m))
         {
             oSetWindowPos(gWnd, nullptr, m.left, m.top, m.right - m.left, m.bottom - m.top, SWP_NOZORDER | SWP_NOACTIVATE);
             Log("window fitted to the monitor (%ldx%ld)", m.right - m.left, m.bottom - m.top);
@@ -613,11 +679,16 @@ namespace
             RECT m;
             if (MonitorRect(gWnd, m)) { gNativeW = m.right - m.left; gNativeH = m.bottom - m.top; }
         }
-        if (InVirtualMode() && !pp->Windowed && cfg.forceWindowed)
+        // Exclusive fullscreen is always turned into a borderless window (not only for resolutions above the
+        // monitor): switching between exclusive fullscreen and a window when going back to the monitor
+        // resolution crashed the game, and it also keeps alt-tab clean.
+        gForcedWindowed = false;
+        if (!pp->Windowed && cfg.forceWindowed)
         {
             pp->Windowed = TRUE;
             pp->FullScreen_RefreshRateInHz = 0;
-            Log("%s: %ux%u is above the monitor, switched exclusive fullscreen to windowed. Set the game to Windowed + Borderless: in fullscreen mode it keeps reading input after alt-tab", what, gBackW, gBackH);
+            gForcedWindowed = true;
+            Log("%s: exclusive fullscreen turned into a borderless window", what);
         }
         Log("%s: backbuffer %ux%u, monitor %ux%u%s", what, gBackW, gBackH, gNativeW, gNativeH, InVirtualMode() ? " (supersampling)" : "");
     }
@@ -826,6 +897,7 @@ namespace
     void Install(HMODULE self)
     {
         LoadSettings(self);
+        AddVectoredExceptionHandler(0, &CrashHandler);
         if (!cfg.enabled) { Log("disabled in the ini"); return; }
         if (MH_Initialize() != MH_OK) { Log("MinHook init failed"); return; }
         if (!GetModuleHandleW(L"d3d9.dll")) LoadLibraryW(L"d3d9.dll");

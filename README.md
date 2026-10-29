@@ -25,8 +25,9 @@ para a tela, o que diminui bastante o serrilhado.
 1. Baixe `LibertyEdge.ResolutionUnlock.zip` da release **latest** (aba Releases).
 2. Extraia na pasta do jogo (a pasta `plugins` do zip vai ao lado do `GTAIV.exe`). Precisa de um ASI
    loader; o FusionFix já instala um.
-3. No jogo (aba Jogo do FusionFix): **Janela sem borda = Sim**. Na Arc B580 funcionou com **Janela = Não**
-   e **Janela sem borda = Sim**. Em tela cheia exclusiva o mod troca para janela sozinho.
+3. No jogo (aba Jogo do FusionFix): **Janela = Não** e **Janela sem borda = Sim**. O mod transforma a tela cheia
+   exclusiva em janela sem borda do tamanho do monitor (`ForceWindowed`), o que evita travar ao trocar de
+   resolução e deixa o alt-tab limpo.
 4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. Na Arc B580, 2880×1620 foi o
    melhor equilíbrio; 3840×2160 é mais nítido e mais pesado.
 
@@ -43,7 +44,9 @@ resolução do monitor.
 | `KeyboardFix` | `1` | jogo só lê teclado e mouse em primeiro plano (acentuação, alt-tab) |
 | `ModListKey` | `0x7A` (F11) | tecla da lista de mods instalados (0 desliga) |
 
-Diagnóstico em `LibertyEdge.ResolutionUnlock.log`, na pasta do jogo.
+Diagnóstico em `LibertyEdge.ResolutionUnlock.log` (sessão atual) e `.prev.log` (sessão anterior), na pasta do
+jogo. Se o jogo fechar com erro, `LibertyEdge.ResolutionUnlock.crash.log` registra em qual módulo (jogo, mod ou
+driver) aconteceu.
 
 ## Mods recomendados junto
 - [FusionFix](https://www.nexusmods.com/gta4/mods/716): base recomendada (ASI loader, Vulkan, correções).
