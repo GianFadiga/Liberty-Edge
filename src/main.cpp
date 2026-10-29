@@ -247,7 +247,7 @@ namespace
         {
             pp->Windowed = TRUE;
             pp->FullScreen_RefreshRateInHz = 0;
-            Log("%s: %ux%u is above the monitor, switched exclusive fullscreen to windowed", what, gBackW, gBackH);
+            Log("%s: %ux%u is above the monitor, switched exclusive fullscreen to windowed. Set the game to Windowed + Borderless: in fullscreen mode it keeps reading input after alt-tab", what, gBackW, gBackH);
         }
         Log("%s: backbuffer %ux%u, monitor %ux%u%s", what, gBackW, gBackH, gNativeW, gNativeH, InVirtualMode() ? " (supersampling)" : "");
     }

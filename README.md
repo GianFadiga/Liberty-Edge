@@ -19,8 +19,9 @@ para a tela, o que diminui bastante o serrilhado.
 1. Baixe `LibertyEdge.ResolutionUnlock.zip` da release **latest** (aba Releases).
 2. Extraia na pasta do jogo (a pasta `plugins` do zip vai ao lado do `GTAIV.exe`). Precisa de um ASI
    loader; o FusionFix já instala um.
-3. No jogo: modo **Janela sem borda** (Borderless Windowed). Em tela cheia exclusiva o mod troca
-   para janela automaticamente.
+3. No jogo: **Jogo → Janela = Sim** e **Janela sem borda = Sim** (FusionFix). Isso é obrigatório na prática:
+   em tela cheia o mod troca para janela para não travar, mas o jogo continua achando que está em tela
+   cheia e segue lendo o teclado depois do alt-tab (o que também quebra a acentuação no Windows).
 4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. Na Arc B580, 2880×1620 foi o
    melhor equilíbrio; 3840×2160 é mais nítido e mais pesado.
 
