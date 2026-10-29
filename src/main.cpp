@@ -25,7 +25,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.0"
+#define LE_VERSION "1.1"
 
 namespace
 {
@@ -163,6 +163,41 @@ namespace
             }
         }
         return r;
+    }
+
+    // The game treats a WM_SIZE in windowed/borderless mode as a resolution change: after the window is
+    // fitted to the monitor it would reset the device to the monitor size and save that as the Video Mode.
+    // While a mode above the monitor is active, WM_SIZE is reported with the game resolution instead.
+    WNDPROC gOrigWndProc = nullptr;
+    HWND gSubclassed = nullptr;
+    bool gWndUnicode = false;
+
+    LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
+    {
+        if (msg == WM_SIZE && wp != SIZE_MINIMIZED && InVirtualMode())
+        {
+            UINT cx = LOWORD(lp), cy = HIWORD(lp);
+            if (cx && cy && (cx != gBackW || cy != gBackH))
+            {
+                static int n = 0;
+                if (n++ < 10) Log("WM_SIZE %ux%u reported to the game as %ux%u", cx, cy, gBackW, gBackH);
+                lp = MAKELPARAM(gBackW, gBackH);
+            }
+        }
+        return gWndUnicode ? CallWindowProcW(gOrigWndProc, w, msg, wp, lp) : CallWindowProcA(gOrigWndProc, w, msg, wp, lp);
+    }
+
+    void Subclass()
+    {
+        if (!gWnd || gWnd == gSubclassed) return;
+        gWndUnicode = IsWindowUnicode(gWnd) != 0;
+        LONG_PTR prev = gWndUnicode ? SetWindowLongPtrW(gWnd, GWLP_WNDPROC, (LONG_PTR)&WndProc) : SetWindowLongPtrA(gWnd, GWLP_WNDPROC, (LONG_PTR)&WndProc);
+        if (prev)
+        {
+            gOrigWndProc = (WNDPROC)prev;
+            gSubclassed = gWnd;
+            Log("window procedure hooked (%s)", gWndUnicode ? "unicode" : "ansi");
+        }
     }
 
     void FitWindowNow()
@@ -375,6 +410,7 @@ namespace
     {
         gFilter.ReleaseDefault();
         PrepareParams(pp, "Reset");
+        Subclass();
         HRESULT hr = oReset(dev, pp);
         if (SUCCEEDED(hr)) FitWindowNow();
         else Log("Reset failed: 0x%08lX", (unsigned long)hr);
@@ -391,6 +427,7 @@ namespace
         {
             if (auto o = PatchVtbl(*out, 16, (void*)&hkReset)) oReset = (Reset_t)o;
             if (auto o = PatchVtbl(*out, 17, (void*)&hkPresent)) oPresent = (Present_t)o;
+            Subclass();
             FitWindowNow();
         }
         else
