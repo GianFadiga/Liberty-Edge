@@ -1,9 +1,9 @@
 diff --git a/source/gpsdebug.ixx b/source/gpsdebug.ixx
 new file mode 100644
-index 0000000..a8c14c4
+index 0000000..ee2b3ca
 --- /dev/null
 +++ b/source/gpsdebug.ixx
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,102 @@
 +module;
 +
 +#include <common.hxx>
@@ -43,7 +43,7 @@ index 0000000..a8c14c4
 +            {
 +                static float timer = 0.0f;
 +                timer += 1000.0f * Natives::Timestep();
-+                if (timer < 500.0f)
++                if (timer < 250.0f)
 +                    return;
 +                timer = 0.0f;
 +
@@ -64,8 +64,11 @@ index 0000000..a8c14c4
 +                    Blip b = Natives::GetFirstBlipInfoId(type);
 +                    for (int n = 0; b && Natives::DoesBlipExist(b) && n < 64; n++, b = Natives::GetNextBlipInfoId(type))
 +                    {
++                        // GET_BLIP_COORDS returns 0,0,0 for these handles; GET_BLIP_INFO_ID_POSITION takes the info id
 +                        Vector3 v{};
-+                        Natives::GetBlipCoords(b, &v);
++                        NativeInvoke::Invoke<639, std::to_underlying(Natives::NativeHashes::GET_BLIP_INFO_ID_POSITION), void>(b, &v);
++                        if (v.fX == 0.0f && v.fY == 0.0f)
++                            Natives::GetBlipCoords(b, &v);
 +                        blips.push_back({ Natives::GetBlipInfoIdType(b), Natives::GetBlipSprite(b), Natives::GetBlipInfoIdDisplay(b), v.fX, v.fY, v.fZ });
 +                    }
 +                }
@@ -86,7 +89,7 @@ index 0000000..a8c14c4
 +                const B* target = nullptr;
 +                for (auto& b : blips) if (b.sprite == 8) { target = &b; break; }
 +                if (!target) for (auto& b : blips) if (b.type == 4) { target = &b; break; }
-+                if (!target)
++                if (!target || (target->x == 0.0f && target->y == 0.0f))
 +                    return;
 +
 +                float x, y, z, heading, speed;
@@ -96,8 +99,9 @@ index 0000000..a8c14c4
 +                int32_t dir = -1;
 +                Vector3 out{};
 +                Natives::GenerateDirections(target->x, target->y, target->z, &dir, &out);
-+                Log(std::format("car {:.1f},{:.1f} heading {:.0f} speed {:.1f} | target sprite {} at {:.0f},{:.0f} | directions {} ({:.2f}, {:.2f}, {:.2f})",
-+                    x, y, heading, speed, target->sprite, target->x, target->y, dir, out.fX, out.fY, out.fZ));
++                int32_t raw[3]; memcpy(raw, &out, sizeof(raw));
++                Log(std::format("car {:.1f},{:.1f} heading {:.0f} speed {:.1f} | target sprite {} at {:.0f},{:.0f} | directions {} (raw {}, {}, {} | {:.2f}, {:.2f}, {:.2f})",
++                    x, y, heading, speed, target->sprite, target->x, target->y, dir, raw[0], raw[1], raw[2], out.fX, out.fY, out.fZ));
 +            };
 +        };
 +    }
