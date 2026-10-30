@@ -1,0 +1,80 @@
+diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
+index 06c273b..67acb0f 100644
+--- a/source/turnindicators.ixx
++++ b/source/turnindicators.ixx
+@@ -69,6 +69,57 @@ namespace BumperGate
+     }
+ }
+ 
++// GPS-driven blinkers: with a waypoint set, the automatic blinkers also follow the GPS route, the way the GPS voice
++// does. GENERATE_DIRECTIONS (the call behind the GPS voice) gives the next instruction towards the waypoint:
++// 0 none, 1 turn right, 2 turn left, 3 straight on, 4 turn around (found by driving logged routes). It reports a turn
++// from shortly before the junction until the turn is made, so the blinker comes on ahead of it and goes off after.
++namespace GpsBlinkers
++{
++    // FusionFix's NativeInvoke only copies Vector3 out-parameters back for natives with a return value, and these two
++    // are void: call them through a context and copy the vectors back explicitly.
++    template<typename... Args>
++    void InvokeWithVectors(uint32_t hash, Args... args)
++    {
++        NativeContext cxt;
++        (cxt.Push(args), ...);
++        if (auto fn = NativeInvoke::GetNativeHandler(hash))
++        {
++            fn(&cxt);
++            static_cast<scrNativeCallContext&>(cxt).GetResult<int32_t>(0);
++        }
++    }
++
++    constexpr uint32_t BLIP_COORD = 4, SPRITE_WAYPOINT = 8;
++
++    // 0 none, 1 left, 2 right (the turn indicator directions)
++    int Direction()
++    {
++        static float timer = 0.0f;
++        static int last = 0;
++        timer += 1000.0f * Natives::Timestep();
++        if (timer < 250.0f)
++            return last;
++        timer = 0.0f;
++        last = 0;
++        Blip b = Natives::GetFirstBlipInfoId(BLIP_COORD);
++        for (int n = 0; n < 64 && b && Natives::DoesBlipExist(b); n++, b = Natives::GetNextBlipInfoId(BLIP_COORD))
++        {
++            if (Natives::GetBlipSprite(b) != SPRITE_WAYPOINT)
++                continue;
++            Vector3 target{};
++            InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GET_BLIP_COORDS), b, &target);
++            if (target.fX == 0.0f && target.fY == 0.0f)
++                break;
++            int32_t instruction = 0;
++            Vector3 unused{};
++            InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GENERATE_DIRECTIONS), target.fX, target.fY, target.fZ, &instruction, &unused);
++            last = (instruction == 2) ? 1 : (instruction == 1) ? 2 : 0;
++            break;
++        }
++        return last;
++    }
++}
++
+ // Struct to hold all vehicle state data
+ struct VehicleState
+ {
+@@ -196,6 +247,7 @@ public:
+             static bool bManualTurnIndicators = iniReader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
+             static uint32_t nLeftIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
+             static uint32_t nRightIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
++            static bool bGpsBlinkers = iniReader.ReadInteger("TURNINDICATORS", "GpsTurnIndicators", 1) != 0;
+             BumperGate::Install();
+ 
+             struct VehicleFlags
+@@ -662,6 +714,9 @@ public:
+                                 current_turn_direction = 1; // Left
+                             else if (m_fSteerAngle < -STEER_THRESHOLD)
+                                 current_turn_direction = 2; // Right
++                            // Not steering: follow the GPS route, if a waypoint is set
++                            if (current_turn_direction == 0 && bGpsBlinkers)
++                                current_turn_direction = GpsBlinkers::Direction();
+ 
+                             bool currently_turning = (current_turn_direction != 0);
+                             bool direction_changed = (current_turn_direction != state.last_turn_direction &&
