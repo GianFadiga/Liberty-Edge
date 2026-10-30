@@ -1,8 +1,19 @@
+diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
+--- a/data/plugins/GTAIV.EFLC.FusionFix.ini
++++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
+@@ -103,6 +103,7 @@
+ ManualTurnIndicators = 0                      // legacy: makes "Automatic" behave as "Manual". Use Game > Turn Indicators: On (manual) or Automatic + manual instead (tap LB/RB or the keys below)
+ LeftIndicatorKey = 0xDB                       // VK_OEM_4, the Left Brace key
+ RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
++GpsTurnIndicators = 1                         // with a GPS route (waypoint or mission), the automatic turn indicators also signal the route's next turn
+ 
+ [HEADLIGHTS]
+ CycleHeadlights = 0                           // 1: the headlight key cycles Automatic -> High beam -> Low beam -> Off (automatic stays the default)
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index 06c273b..8e847af 100644
+index 06c273b..c324432 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
-@@ -69,6 +69,91 @@ namespace BumperGate
+@@ -69,6 +69,78 @@ namespace BumperGate
      }
  }
  
@@ -31,7 +42,6 @@ index 06c273b..8e847af 100644
 +    constexpr int32_t MaxBlips = 1500;      // CRadar's blip array (index <= 0x5DB)
 +    constexpr uint16_t BLIP_FLAG_ROUTE = 0x10;
 +    uint8_t** blips = nullptr;              // array of blip pointers; a blip starts with its 16-bit generation
-+    bool debug = false;
 +
 +    void Init()
 +    {
@@ -68,25 +78,13 @@ index 06c273b..8e847af 100644
 +        }
 +        Blip target = waypoint ? waypoint : route;
 +        if (!target)
-+        {
-+            if (debug)
-+                Natives::PrintStringWithLiteralStringNow((char*)"STRING", (void*)"GPS: no route", 300, true);
 +            return 0;
-+        }
 +        Vector3 pos{};
 +        InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GET_BLIP_COORDS), target, &pos);
 +        int32_t instruction = 0;
 +        Vector3 unused{};
 +        InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GENERATE_DIRECTIONS), pos.fX, pos.fY, pos.fZ, &instruction, &unused);
 +        last = (instruction == 2) ? 1 : (instruction == 1) ? 2 : 0;
-+        if (debug)
-+        {
-+            static const char* names[] = { "none", "turn right", "turn left", "straight on", "turn around" };
-+            static char text[96];
-+            snprintf(text, sizeof(text), "GPS (%s): %s", waypoint ? "waypoint" : "mission route",
-+                (instruction >= 0 && instruction <= 4) ? names[instruction] : "?");
-+            Natives::PrintStringWithLiteralStringNow((char*)"STRING", (void*)text, 300, true);
-+        }
 +        return last;
 +    }
 +}
@@ -94,17 +92,16 @@ index 06c273b..8e847af 100644
  // Struct to hold all vehicle state data
  struct VehicleState
  {
-@@ -196,6 +281,9 @@ public:
+@@ -196,6 +268,8 @@ public:
              static bool bManualTurnIndicators = iniReader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
              static uint32_t nLeftIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
              static uint32_t nRightIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
 +            static bool bGpsBlinkers = iniReader.ReadInteger("TURNINDICATORS", "GpsTurnIndicators", 1) != 0;
-+            GpsBlinkers::debug = iniReader.ReadInteger("TURNINDICATORS", "GpsTurnIndicatorsDebug", 0) != 0;
 +            GpsBlinkers::Init();
              BumperGate::Install();
  
              struct VehicleFlags
-@@ -662,6 +750,9 @@ public:
+@@ -662,6 +736,9 @@ public:
                                  current_turn_direction = 1; // Left
                              else if (m_fSteerAngle < -STEER_THRESHOLD)
                                  current_turn_direction = 2; // Right
