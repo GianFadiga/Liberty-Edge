@@ -12,7 +12,7 @@ index c575020..b0cd2af 100644
  RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
  
 diff --git a/data/update/TBoGT/common/data/frontend_menus.xml b/data/update/TBoGT/common/data/frontend_menus.xml
-index 8ecb165..4a4a81f 100644
+index 8ecb165..1616d09 100644
 --- a/data/update/TBoGT/common/data/frontend_menus.xml
 +++ b/data/update/TBoGT/common/data/frontend_menus.xml
 @@ -414,6 +414,13 @@
@@ -23,7 +23,7 @@ index 8ecb165..4a4a81f 100644
 +      <options text="MO_OFF" action="ACTION_NONE" value="0" />
 +      <options text="Automatic" action="ACTION_NONE" value="1" />
 +      <options text="On (manual)" action="ACTION_NONE" value="2" />
-+      <options text="Automatic + manual" action="ACTION_NONE" value="3" />
++      <options text="Auto + manual" action="ACTION_NONE" value="3" />
 +    </menupc>
 +
      <menupc enum="MENU_DISPLAY_ANTIALIASING">
@@ -48,7 +48,7 @@ index 8ecb165..4a4a81f 100644
  			<optionspc action="MENUOPT_ADJUST" label="Wardrobe Fading" value="PREF_NOWARDROBEFADING" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
 diff --git a/data/update/TLAD/common/data/frontend_menus.xml b/data/update/TLAD/common/data/frontend_menus.xml
-index ffc6383..ea23f73 100644
+index ffc6383..823d69f 100644
 --- a/data/update/TLAD/common/data/frontend_menus.xml
 +++ b/data/update/TLAD/common/data/frontend_menus.xml
 @@ -490,6 +490,13 @@
@@ -59,7 +59,7 @@ index ffc6383..ea23f73 100644
 +      <options text="MO_OFF" action="ACTION_NONE" value="0" />
 +      <options text="Automatic" action="ACTION_NONE" value="1" />
 +      <options text="On (manual)" action="ACTION_NONE" value="2" />
-+      <options text="Automatic + manual" action="ACTION_NONE" value="3" />
++      <options text="Auto + manual" action="ACTION_NONE" value="3" />
 +    </menupc>
 +
      <menupc enum="MENU_DISPLAY_ANTIALIASING">
@@ -84,7 +84,7 @@ index ffc6383..ea23f73 100644
  			<optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Ladders Climb" value="PREF_AUTOCLIMBLADDERS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
 diff --git a/data/update/common/data/frontend_menus.xml b/data/update/common/data/frontend_menus.xml
-index e58e210..c51d040 100644
+index e58e210..ead3b45 100644
 --- a/data/update/common/data/frontend_menus.xml
 +++ b/data/update/common/data/frontend_menus.xml
 @@ -347,6 +347,13 @@
@@ -95,7 +95,7 @@ index e58e210..c51d040 100644
 +          <options text="MO_OFF" action="ACTION_NONE" value="0" />
 +          <options text="Automatic" action="ACTION_NONE" value="1" />
 +          <options text="On (manual)" action="ACTION_NONE" value="2" />
-+          <options text="Automatic + manual" action="ACTION_NONE" value="3" />
++          <options text="Auto + manual" action="ACTION_NONE" value="3" />
 +        </menupc>
 +
          <menupc enum="MENU_DISPLAY_ANTIALIASING">
@@ -120,7 +120,7 @@ index e58e210..c51d040 100644
  			<optionspc action="MENUOPT_ADJUST" label="Wardrobe Fading" value="PREF_NOWARDROBEFADING" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
 diff --git a/source/settings.ixx b/source/settings.ixx
-index 2642578..1437f79 100644
+index 2642578..1876acf 100644
 --- a/source/settings.ixx
 +++ b/source/settings.ixx
 @@ -1489,7 +1489,7 @@ public:
@@ -128,7 +128,7 @@ index 2642578..1437f79 100644
              { 0, "PREF_CAMERASHAKE",            "MAIN",       "CameraShake",                        "",                           1, nullptr, 0, 1 },
              { 0, "PREF_CUTSCENEAUDIOSYNC",      "MAIN",       "CutsceneAudioSync",                  "MENU_DISPLAY_AUDIO_SYNC",                           0, nullptr, 0, 2 },
 -            { 0, "PREF_TURNINDICATORS",         "MISC",       "TurnIndicators",                     "",                           0, nullptr, 0, 1 },
-+            { 0, "PREF_TURNINDICATORS",         "MISC",       "TurnIndicators",                     "",                           0, nullptr, 0, 3 },
++            { 0, "PREF_TURNINDICATORS",         "MISC",       "TurnIndicators",                     "MENU_DISPLAY_TURNINDICATORS", 0, nullptr, 0, 3 },
              { 0, "PREF_EXTRANIGHTSHADOWS",      "SHADOWS",    "ExtraNightShadows",                  "MENU_DISPLAY_EXTRA_NIGHT_SHADOWS",                           0, nullptr, 0, 3 },
              { 0, "PREF_GRAPHICSAPI",            "MAIN",       "GraphicsAPI",                        "MENU_DISPLAY_GRAPHICS_API",                           0, nullptr, 0, 1 },
              { 0, "PREF_BULLETTRACES",           "MISC",       "AlwaysShowBulletTraces",             "",                           0, nullptr, 0, 1 },
