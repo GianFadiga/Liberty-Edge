@@ -68,5 +68,5 @@ jobs:
       run: |
         gh release delete fusionfix-turnindicators-test --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
         gh release create fusionfix-turnindicators-test FusionFix-5.1.2-turnindicators-test.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
-          --title "FusionFix 5.1.2 + Turn Indicators: Off/Automatic/Manual/Manual + Auto (test)" \
+          --title "FusionFix 5.1.2 + turn indicators and headlight cycle (test)" \
           --notes "Test build of FusionFix 5.1.2 with contrib/fusionfix-5.1.2-turn-indicators-auto-with-manual.patch. Only for testing; the change is proposed upstream."
