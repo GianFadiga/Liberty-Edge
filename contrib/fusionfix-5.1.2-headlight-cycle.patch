@@ -16,10 +16,10 @@ index b0cd2af..0b15755 100644
  ReflectionMSAAQuality = 0                     // Applies MSAA to the reflection maps (exterior, interior, water, mirror) like on Xbox 360. Valid options: 2|4|8, other values are ignored and disable this feature.
 diff --git a/source/headlightcycle.ixx b/source/headlightcycle.ixx
 new file mode 100644
-index 0000000..7a6e0d3
+index 0000000..6d444d3
 --- /dev/null
 +++ b/source/headlightcycle.ixx
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,85 @@
 +module;
 +
 +#include <common.hxx>
@@ -94,13 +94,12 @@ index 0000000..7a6e0d3
 +
 +                // The next press toggles the game's high beam only when it leads into or out of High beam
 +                // (Automatic -> High, High -> Low); from Low and Off the game's switch is suppressed.
++                // Like other script flags, the suppression is cleared by the game every frame, so it is set every frame.
 +                bool suppress = driving && (step == 2 || step == 3);
-+                static int32_t lastSuppress = -1;
-+                if ((int32_t)suppress != lastSuppress)
-+                {
++                static bool lastSuppress = false;
++                if (suppress || lastSuppress)
 +                    Natives::SetSuppressHeadlightSwitch(suppress);
-+                    lastSuppress = suppress;
-+                }
++                lastSuppress = suppress;
 +                return;
 +            };
 +        };
