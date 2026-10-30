@@ -66,7 +66,7 @@ route's next turn, the way the GPS voice announces it. Steering still takes prio
 
 ### Testing
 Tested in game on a backport of these changes to 5.1.2 (same code; menu row added through `frontend_menus.xml`),
-GTA IV Complete Edition 1.2.0.59, keyboard and Xbox controller:
+GTA IV Complete Edition 1.2.0.59, keyboard and controller:
 
 - all four modes, switched live from the menu;
 - LB/RB tap (indicator only) and hold (fire/handbrake), hazards with both bumpers;
