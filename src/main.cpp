@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.5"
+#define LE_VERSION "1.6"
 
 namespace
 {
@@ -373,12 +373,26 @@ namespace
     using DIGetDeviceData_t = HRESULT(WINAPI*)(void*, DWORD, LPDIDEVICEOBJECTDATA, LPDWORD, DWORD);
     DI8Create_t oDI8Create = nullptr;
     DICreateDevice_t oDICreateDeviceA = nullptr, oDICreateDeviceW = nullptr;
-    DIGetDeviceState_t oDIGetDeviceStateA = nullptr, oDIGetDeviceStateW = nullptr;
-    DIGetDeviceData_t oDIGetDeviceDataA = nullptr, oDIGetDeviceDataW = nullptr;
-
-    HRESULT StateFiltered(DIGetDeviceState_t o, void* dev, DWORD cb, LPVOID data)
+    // Keyboard, mouse and game controllers can be different classes with their own vtables, so the original
+    // methods are kept per vtable (a single global would send a keyboard call to a controller's method and crash).
+    struct DIVtblOrig { void** vtbl; DIGetDeviceState_t state; DIGetDeviceData_t data; };
+    DIVtblOrig gDIOrig[16] = {};
+    SRWLOCK gDILock = SRWLOCK_INIT;
+    DIVtblOrig* FindDIOrig(void* dev)
     {
-        HRESULT hr = o(dev, cb, data);
+        void** vtbl = *(void***)dev;
+        AcquireSRWLockShared(&gDILock);
+        DIVtblOrig* r = nullptr;
+        for (auto& e : gDIOrig) if (e.vtbl == vtbl) { r = &e; break; }
+        ReleaseSRWLockShared(&gDILock);
+        return r;
+    }
+
+    HRESULT WINAPI hkGetDeviceState(void* dev, DWORD cb, LPVOID data)
+    {
+        DIVtblOrig* e = FindDIOrig(dev);
+        if (!e || !e->state) return DIERR_GENERIC;
+        HRESULT hr = e->state(dev, cb, data);
         if (cfg.keyboardFix && data && !GameInForeground())
         {
             memset(data, 0, cb);
@@ -386,9 +400,11 @@ namespace
         }
         return hr;
     }
-    HRESULT DataFiltered(DIGetDeviceData_t o, void* dev, DWORD cb, LPDIDEVICEOBJECTDATA data, LPDWORD inout, DWORD fl)
+    HRESULT WINAPI hkGetDeviceData(void* dev, DWORD cb, LPDIDEVICEOBJECTDATA data, LPDWORD inout, DWORD fl)
     {
-        HRESULT hr = o(dev, cb, data, inout, fl);
+        DIVtblOrig* e = FindDIOrig(dev);
+        if (!e || !e->data) return DIERR_GENERIC;
+        HRESULT hr = e->data(dev, cb, data, inout, fl);
         if (cfg.keyboardFix && inout && !GameInForeground() && !(fl & DIGDD_PEEK))
         {
             *inout = 0;
@@ -396,23 +412,30 @@ namespace
         }
         return hr;
     }
-    HRESULT WINAPI hkGetDeviceStateA(void* d, DWORD cb, LPVOID p) { return StateFiltered(oDIGetDeviceStateA, d, cb, p); }
-    HRESULT WINAPI hkGetDeviceStateW(void* d, DWORD cb, LPVOID p) { return StateFiltered(oDIGetDeviceStateW, d, cb, p); }
-    HRESULT WINAPI hkGetDeviceDataA(void* d, DWORD cb, LPDIDEVICEOBJECTDATA p, LPDWORD n, DWORD f) { return DataFiltered(oDIGetDeviceDataA, d, cb, p, n, f); }
-    HRESULT WINAPI hkGetDeviceDataW(void* d, DWORD cb, LPDIDEVICEOBJECTDATA p, LPDWORD n, DWORD f) { return DataFiltered(oDIGetDeviceDataW, d, cb, p, n, f); }
-
-    void PatchDIDevice(void* dev, bool wide)
+    void PatchDIDevice(void* dev, bool)
     {
         // IDirectInputDevice8: 9 = GetDeviceState, 10 = GetDeviceData
-        if (wide)
+        void** vtbl = *(void***)dev;
+        AcquireSRWLockExclusive(&gDILock);
+        bool known = false, added = false;
+        for (auto& e : gDIOrig) if (e.vtbl == vtbl) { known = true; break; }
+        if (!known)
+            for (auto& e : gDIOrig)
+                if (!e.vtbl)
+                {
+                    // record the originals before the vtable points at the hooks
+                    e.state = (DIGetDeviceState_t)vtbl[9];
+                    e.data = (DIGetDeviceData_t)vtbl[10];
+                    e.vtbl = vtbl;
+                    added = true;
+                    break;
+                }
+        ReleaseSRWLockExclusive(&gDILock);
+        if (added)
         {
-            if (auto o = PatchVtbl(dev, 9, (void*)&hkGetDeviceStateW)) oDIGetDeviceStateW = (DIGetDeviceState_t)o;
-            if (auto o = PatchVtbl(dev, 10, (void*)&hkGetDeviceDataW)) oDIGetDeviceDataW = (DIGetDeviceData_t)o;
-        }
-        else
-        {
-            if (auto o = PatchVtbl(dev, 9, (void*)&hkGetDeviceStateA)) oDIGetDeviceStateA = (DIGetDeviceState_t)o;
-            if (auto o = PatchVtbl(dev, 10, (void*)&hkGetDeviceDataA)) oDIGetDeviceDataA = (DIGetDeviceData_t)o;
+            PatchVtbl(dev, 9, (void*)&hkGetDeviceState);
+            PatchVtbl(dev, 10, (void*)&hkGetDeviceData);
+            Log("DirectInput device class %p hooked", (void*)vtbl);
         }
     }
     HRESULT WINAPI hkDICreateDeviceA(void* di, REFGUID g, void** out, LPUNKNOWN u)
