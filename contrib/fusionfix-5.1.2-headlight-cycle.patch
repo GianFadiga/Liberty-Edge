@@ -16,10 +16,10 @@ index b0cd2af..0b15755 100644
  ReflectionMSAAQuality = 0                     // Applies MSAA to the reflection maps (exterior, interior, water, mirror) like on Xbox 360. Valid options: 2|4|8, other values are ignored and disable this feature.
 diff --git a/source/headlightcycle.ixx b/source/headlightcycle.ixx
 new file mode 100644
-index 0000000..31eda14
+index 0000000..7a6e0d3
 --- /dev/null
 +++ b/source/headlightcycle.ixx
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,86 @@
 +module;
 +
 +#include <common.hxx>
@@ -33,12 +33,13 @@ index 0000000..31eda14
 +
 +// Headlight cycle: keeps the game's automatic headlights and lets the headlight key cycle
 +//   Automatic -> High beam -> Low beam (forced on) -> Off -> Automatic
-+// The game itself toggles the high beam on every press of its headlight key, so the cycle follows that parity
-+// (presses 1 and 3 leave the high beam flag on, 2 and 4 off) and only forces the lights on/off around it:
++// The game itself toggles the high beam on every press of its headlight key, and a high beam stays lit even when the
++// lights are forced off. So the high beam is only toggled on the way into and out of High beam (Automatic -> High,
++// High -> Low); for the other two presses the game's own switch is suppressed (SET_SUPPRESS_HEADLIGHT_SWITCH):
 +//   0 Automatic: FORCE_CAR_LIGHTS 0 (game default), high beam off
 +//   1 High beam: FORCE_CAR_LIGHTS 0, high beam on (game)
 +//   2 Low beam : FORCE_CAR_LIGHTS 2 (on), high beam off (game)
-+//   3 Off      : FORCE_CAR_LIGHTS 1 (off), high beam flag on but not visible
++//   3 Off      : FORCE_CAR_LIGHTS 1 (off), high beam off (switch suppressed)
 +// The state is kept per vehicle, so getting back into a car resumes its cycle.
 +
 +class HeadlightCycle
@@ -72,20 +73,35 @@ index 0000000..31eda14
 +                bool down = IsKeyboardKeyPressed(nKey);
 +                bool pressed = down && !prevDown;
 +                prevDown = down;
-+                if (!car || driver != player || !pressed)
-+                    return;
++                bool driving = car && driver == player;
 +
 +                if (steps.size() > 32)
 +                    steps.clear();
-+                int32_t& step = steps[car];
-+                step = (step + 1) % 4;
-+                static const int32_t force[4] = { 0, 0, 2, 1 };
-+                Natives::ForceCarLights(car, force[step]);
-+                if (bNotice)
++                int32_t step = driving ? steps[car] : 0;
++
++                if (driving && pressed)
 +                {
-+                    static const char* names[4] = { "Headlights: automatic", "Headlights: high beam", "Headlights: low beam", "Headlights: off" };
-+                    Natives::PrintStringWithLiteralStringNow((char*)"STRING", (void*)names[step], 1500, true);
++                    step = (step + 1) % 4;
++                    steps[car] = step;
++                    static const int32_t force[4] = { 0, 0, 2, 1 };
++                    Natives::ForceCarLights(car, force[step]);
++                    if (bNotice)
++                    {
++                        static const char* names[4] = { "Headlights: automatic", "Headlights: high beam", "Headlights: low beam", "Headlights: off" };
++                        Natives::PrintStringWithLiteralStringNow((char*)"STRING", (void*)names[step], 1500, true);
++                    }
 +                }
++
++                // The next press toggles the game's high beam only when it leads into or out of High beam
++                // (Automatic -> High, High -> Low); from Low and Off the game's switch is suppressed.
++                bool suppress = driving && (step == 2 || step == 3);
++                static int32_t lastSuppress = -1;
++                if ((int32_t)suppress != lastSuppress)
++                {
++                    Natives::SetSuppressHeadlightSwitch(suppress);
++                    lastSuppress = suppress;
++                }
++                return;
 +            };
 +        };
 +    }
