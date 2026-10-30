@@ -133,10 +133,77 @@ index 2642578..1876acf 100644
              { 0, "PREF_GRAPHICSAPI",            "MAIN",       "GraphicsAPI",                        "MENU_DISPLAY_GRAPHICS_API",                           0, nullptr, 0, 1 },
              { 0, "PREF_BULLETTRACES",           "MISC",       "AlwaysShowBulletTraces",             "",                           0, nullptr, 0, 1 },
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index d90282d..e4fc82b 100644
+index d90282d..06c273b 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
-@@ -38,6 +38,7 @@ struct VehicleState
+@@ -2,6 +2,7 @@ module;
+ 
+ #include <common.hxx>
+ #include <deque>
++#include <atomic>
+ 
+ export module turnindicators;
+ 
+@@ -16,6 +17,58 @@ constexpr float ACTIVATION_DELAY = 400.0f;  // ms delay before activation
+ constexpr float BLINK_INTERVAL = 400.0f;    // ms blink interval (on/off cycle)
+ constexpr float TAP_THRESHOLD = 300.0f;     // ms threshold for tap detection
+ 
++// Controller bumpers with manual turn indicators: LB/RB also fire/aim and pull the handbrake in vehicles. While the
++// player drives with manual indicators, the game only gets a bumper once it has been held longer than a tap
++// (TAP_THRESHOLD), so a tap only works the turn indicator. The raw state is kept for the indicator logic.
++namespace BumperGate
++{
++    constexpr uint16_t LB = 0x0100, RB = 0x0200; // XINPUT_GAMEPAD_LEFT_SHOULDER / RIGHT_SHOULDER
++    std::atomic<bool> active{ false };
++    std::atomic<uint16_t> raw{ 0 };
++    SafetyHookInline shXInputGetState{};
++    DWORD lbStart = 0, rbStart = 0;
++
++    void Gate(uint16_t& buttons, uint16_t mask, DWORD& start, DWORD now)
++    {
++        if (buttons & mask)
++        {
++            if (!start)
++                start = now ? now : 1;
++            if (now - start < (DWORD)TAP_THRESHOLD)
++                buttons &= ~mask;
++        }
++        else
++            start = 0;
++    }
++
++    DWORD WINAPI XInputGetStateHook(DWORD userIndex, void* state)
++    {
++        DWORD res = shXInputGetState.unsafe_stdcall<DWORD>(userIndex, state);
++        if (res == ERROR_SUCCESS && userIndex == 0 && state)
++        {
++            auto& buttons = *reinterpret_cast<uint16_t*>(reinterpret_cast<uint8_t*>(state) + 4); // XINPUT_STATE::Gamepad.wButtons
++            raw = buttons;
++            if (active)
++            {
++                DWORD now = GetTickCount();
++                Gate(buttons, LB, lbStart, now);
++                Gate(buttons, RB, rbStart, now);
++            }
++            else
++                lbStart = rbStart = 0;
++        }
++        return res;
++    }
++
++    void Install()
++    {
++        auto xinput = LoadLibraryW(L"xinput9_1_0.dll");
++        auto fn = xinput ? GetProcAddress(xinput, "XInputGetState") : nullptr;
++        if (fn)
++            shXInputGetState = safetyhook::create_inline(fn, XInputGetStateHook);
++    }
++}
++
+ // Struct to hold all vehicle state data
+ struct VehicleState
+ {
+@@ -38,6 +91,7 @@ struct VehicleState
      float blink_timer = 0.0f;
      float final_blink_timer = 0.0f;
      bool manual_hazard = false;
@@ -144,7 +211,15 @@ index d90282d..e4fc82b 100644
      int pending_blinker = 0;
  };
  
-@@ -386,6 +387,11 @@ public:
+@@ -142,6 +196,7 @@ public:
+             static bool bManualTurnIndicators = iniReader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
+             static uint32_t nLeftIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
+             static uint32_t nRightIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
++            BumperGate::Install();
+ 
+             struct VehicleFlags
+             {
+@@ -386,6 +441,11 @@ public:
              FusionFix::onGameProcessEvent() += [&]()
              {
                  static auto ti = FusionFixSettings.GetRef("PREF_TURNINDICATORS");
@@ -156,16 +231,39 @@ index d90282d..e4fc82b 100644
                  static Vehicle last_player_car = 0;
                  static bool prev_lb_pressed = false;
                  static bool prev_rb_pressed = false;
-@@ -458,7 +464,7 @@ public:
+@@ -400,6 +460,8 @@ public:
+                     Natives::GetCarCharIsUsing(PlayerPed, &PlayerCar);
+                 }
+ 
++                if (!PlayerCar)
++                    BumperGate::active = false;
+                 // Check if player has fully entered the vehicle (can actually drive)
+                 auto pVehicleStruct = FindPlayerVehicle(0);
+                 bool player_fully_in_vehicle = (PlayerCar != 0 && pVehicleStruct != nullptr);
+@@ -446,6 +508,8 @@ public:
+ 
+                     bool is_player_vehicle = (veh == PlayerCar);
+                     bool player_in_vehicle = is_player_vehicle && player_fully_in_vehicle;
++                    if (is_player_vehicle)
++                        BumperGate::active = player_in_vehicle && bManualMode;
+ 
+                     // Skip processing if feature is disabled and no active blinkers
+                     if (!ti->get() && state.current_blinker == 0)
+@@ -458,10 +522,10 @@ public:
  
                      if (player_in_vehicle && vehicleStruct)
                      {
 -                        if (bManualTurnIndicators)
 +                        if (bManualMode)
                          {
-                             bool lb_pressed = Natives::IsButtonPressed(0, BUTTON_BUMPER_LEFT) || IsKeyboardKeyPressed(nLeftIndicatorKey);
-                             bool rb_pressed = Natives::IsButtonPressed(0, BUTTON_BUMPER_RIGHT) || IsKeyboardKeyPressed(nRightIndicatorKey);
-@@ -494,6 +500,7 @@ public:
+-                            bool lb_pressed = Natives::IsButtonPressed(0, BUTTON_BUMPER_LEFT) || IsKeyboardKeyPressed(nLeftIndicatorKey);
+-                            bool rb_pressed = Natives::IsButtonPressed(0, BUTTON_BUMPER_RIGHT) || IsKeyboardKeyPressed(nRightIndicatorKey);
++                            bool lb_pressed = (BumperGate::raw & BumperGate::LB) || Natives::IsButtonPressed(0, BUTTON_BUMPER_LEFT) || IsKeyboardKeyPressed(nLeftIndicatorKey);
++                            bool rb_pressed = (BumperGate::raw & BumperGate::RB) || Natives::IsButtonPressed(0, BUTTON_BUMPER_RIGHT) || IsKeyboardKeyPressed(nRightIndicatorKey);
+                             if (lb_pressed && !prev_lb_pressed)
+                             {
+                                 lb_press_time = 0.0f;
+@@ -494,6 +558,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -173,7 +271,7 @@ index d90282d..e4fc82b 100644
                                  }
                              }
                              else if (lb_tapped)
-@@ -513,6 +520,7 @@ public:
+@@ -513,6 +578,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -181,7 +279,7 @@ index d90282d..e4fc82b 100644
                                  }
                                  else
                                  {
-@@ -522,6 +530,7 @@ public:
+@@ -522,6 +588,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 1;
@@ -189,7 +287,7 @@ index d90282d..e4fc82b 100644
                                      }
                                      else
                                      {
-@@ -532,6 +541,7 @@ public:
+@@ -532,6 +599,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -197,7 +295,7 @@ index d90282d..e4fc82b 100644
                                      }
                                  }
                              }
-@@ -552,6 +562,7 @@ public:
+@@ -552,6 +620,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -205,7 +303,7 @@ index d90282d..e4fc82b 100644
                                  }
                                  else
                                  {
-@@ -561,6 +572,7 @@ public:
+@@ -561,6 +630,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 2;
@@ -213,7 +311,7 @@ index d90282d..e4fc82b 100644
                                      }
                                      else
                                      {
-@@ -571,6 +583,7 @@ public:
+@@ -571,6 +641,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -221,7 +319,7 @@ index d90282d..e4fc82b 100644
                                      }
                                  }
                              }
-@@ -578,6 +591,9 @@ public:
+@@ -578,6 +649,9 @@ public:
                              prev_rb_pressed = rb_pressed;
                          }
                          else

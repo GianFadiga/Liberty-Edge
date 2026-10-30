@@ -17,10 +17,10 @@ index b0cd2af..c1dcf65 100644
  ReflectionMSAAQuality = 0                     // Applies MSAA to the reflection maps (exterior, interior, water, mirror) like on Xbox 360. Valid options: 2|4|8, other values are ignored and disable this feature.
 diff --git a/source/headlightcycle.ixx b/source/headlightcycle.ixx
 new file mode 100644
-index 0000000..6a29473
+index 0000000..926dc03
 --- /dev/null
 +++ b/source/headlightcycle.ixx
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,154 @@
 +module;
 +
 +#include <common.hxx>
@@ -36,13 +36,15 @@ index 0000000..6a29473
 +
 +// Headlight cycle: keeps the game's automatic headlights and lets the headlight key cycle
 +//   Automatic -> High beam -> Low beam (forced on) -> Off -> Automatic
-+// The game itself toggles the high beam on every press of its headlight key, and a high beam stays lit even when the
-+// lights are forced off. So the high beam is only toggled on the way into and out of High beam (Automatic -> High,
-+// High -> Low); for the other two presses the game's own switch is suppressed (SET_SUPPRESS_HEADLIGHT_SWITCH):
++// FORCE_CAR_LIGHTS forces the headlights on/off but does not touch the high beam, which the game toggles on every
++// press of its headlight key. The high beam is a flag in the vehicle (bit 0x02 of the byte at +0xF19 on 1.2.0.59,
++// found with HeadlightDebug), so the cycle sets that bit itself every frame for the state it is in:
 +//   0 Automatic: FORCE_CAR_LIGHTS 0 (game default), high beam off
-+//   1 High beam: FORCE_CAR_LIGHTS 0, high beam on (game)
-+//   2 Low beam : FORCE_CAR_LIGHTS 2 (on), high beam off (game)
-+//   3 Off      : FORCE_CAR_LIGHTS 1 (off), high beam off (switch suppressed)
++//   1 High beam: FORCE_CAR_LIGHTS 0, high beam on
++//   2 Low beam : FORCE_CAR_LIGHTS 2 (on), high beam off
++//   3 Off      : FORCE_CAR_LIGHTS 1 (off), high beam off
++// The vehicle layout differs between game versions by 0x50 bytes. The layout is confirmed at runtime from the byte
++// that FORCE_CAR_LIGHTS writes (+0x10C2 or +0x1112) before the high beam bit is touched.
 +// The state is kept per vehicle, so getting back into a car resumes its cycle.
 +
 +// Debug aid ([HEADLIGHTS] HeadlightDebug = 1): finds where the vehicle keeps its high beam state. Every frame the player's
@@ -136,12 +138,23 @@ index 0000000..6a29473
 +                    steps.clear();
 +                int32_t step = driving ? steps[car] : 0;
 +
++                // 0 = unknown, otherwise the offset of the high beam byte
++                static ptrdiff_t highBeamOffset = 0;
++                auto veh = driving ? (uint8_t*)FindPlayerVehicle(0) : nullptr;
++
 +                if (driving && pressed)
 +                {
 +                    step = (step + 1) % 4;
 +                    steps[car] = step;
 +                    static const int32_t force[4] = { 0, 0, 2, 1 };
 +                    Natives::ForceCarLights(car, force[step]);
++                    if (veh && !highBeamOffset && force[step] != 0)
++                    {
++                        if (veh[0x10C2] == force[step])
++                            highBeamOffset = 0xF19;
++                        else if (veh[0x10C2 + 0x50] == force[step])
++                            highBeamOffset = 0xF19 + 0x50;
++                    }
 +                    if (bNotice)
 +                    {
 +                        static const char* names[4] = { "Headlights: automatic", "Headlights: high beam", "Headlights: low beam", "Headlights: off" };
@@ -149,14 +162,14 @@ index 0000000..6a29473
 +                    }
 +                }
 +
-+                // The next press toggles the game's high beam only when it leads into or out of High beam
-+                // (Automatic -> High, High -> Low); from Low and Off the game's switch is suppressed.
-+                // Like other script flags, the suppression is cleared by the game every frame, so it is set every frame.
-+                bool suppress = driving && (step == 2 || step == 3);
-+                static bool lastSuppress = false;
-+                if (suppress || lastSuppress)
-+                    Natives::SetSuppressHeadlightSwitch(suppress);
-+                lastSuppress = suppress;
++                // The high beam follows the cycle, whatever the game's own toggle did on this press
++                if (veh && highBeamOffset)
++                {
++                    uint8_t& flags = veh[highBeamOffset];
++                    uint8_t wanted = (step == 1) ? (flags | 0x02) : (flags & ~0x02);
++                    if (flags != wanted)
++                        flags = wanted;
++                }
 +                return;
 +            };
 +        };
