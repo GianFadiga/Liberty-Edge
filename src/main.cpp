@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.6"
+#define LE_VERSION "1.7"
 
 namespace
 {
@@ -42,6 +42,7 @@ namespace
         bool mouseFix = true;
         bool forceWindowed = true;
         bool keyboardFix = true;
+        bool log = false; // diagnostic files next to GTAIV.exe (log, previous log, crash log)
         int overlayKey = VK_F11;
     } cfg;
 
@@ -50,7 +51,7 @@ namespace
     void Log(const char* fmt, ...)
     {
         static int lines = 0;
-        if (++lines > 200) return;
+        if (!cfg.log || ++lines > 200) return;
         char b[512];
         va_list a; va_start(a, fmt); vsnprintf(b, sizeof(b), fmt, a); va_end(a);
         FILE* f = nullptr;
@@ -70,8 +71,6 @@ namespace
         GetModuleFileNameW(nullptr, path, MAX_PATH);
         gDir = path;
         gDir = gDir.substr(0, gDir.find_last_of(L"\\/") + 1);
-        // keep the previous session's log (useful after a crash: the next launch would overwrite it)
-        MoveFileExW((gDir + L"LibertyEdge.ResolutionUnlock.log").c_str(), (gDir + L"LibertyEdge.ResolutionUnlock.prev.log").c_str(), MOVEFILE_REPLACE_EXISTING);
 
         auto getInt = [&](const wchar_t* k, int d) { return (int)GetPrivateProfileIntW(L"MAIN", k, d, ini.c_str()); };
         auto getStr = [&](const wchar_t* k, const wchar_t* d) {
@@ -88,6 +87,10 @@ namespace
         cfg.mouseFix = getInt(L"MouseFix", 1) != 0;
         cfg.forceWindowed = getInt(L"ForceWindowed", 1) != 0;
         cfg.keyboardFix = getInt(L"KeyboardFix", 1) != 0;
+        cfg.log = getInt(L"Log", 0) != 0;
+        // keep the previous session's log (useful after a crash: the next launch would overwrite it)
+        if (cfg.log)
+            MoveFileExW((gDir + L"LibertyEdge.ResolutionUnlock.log").c_str(), (gDir + L"LibertyEdge.ResolutionUnlock.prev.log").c_str(), MOVEFILE_REPLACE_EXISTING);
         cfg.overlayKey = (int)wcstol(getStr(L"ModListKey", L"0x7A").c_str(), nullptr, 0);
         cfg.sharpen = std::clamp((float)_wtof(getStr(L"Sharpen", L"0.3").c_str()), 0.0f, 1.0f);
         auto sc = getStr(L"Scales", L"1.5, 2, 3");
@@ -920,7 +923,8 @@ namespace
     void Install(HMODULE self)
     {
         LoadSettings(self);
-        AddVectoredExceptionHandler(0, &CrashHandler);
+        if (cfg.log)
+            AddVectoredExceptionHandler(0, &CrashHandler);
         if (!cfg.enabled) { Log("disabled in the ini"); return; }
         if (MH_Initialize() != MH_OK) { Log("MinHook init failed"); return; }
         if (!GetModuleHandleW(L"d3d9.dll")) LoadLibraryW(L"d3d9.dll");

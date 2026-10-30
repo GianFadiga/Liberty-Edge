@@ -43,10 +43,11 @@ resolução do monitor.
 | `FitWindow`, `MouseFix`, `ForceWindowed` | `1` | janela no tamanho do monitor, mouse, tela cheia → janela |
 | `KeyboardFix` | `1` | jogo só lê teclado e mouse em primeiro plano (acentuação, alt-tab) |
 | `ModListKey` | `0x7A` (F11) | tecla da lista de mods instalados (0 desliga) |
+| `Log` | `0` | arquivos de diagnóstico na pasta do jogo |
 
-Diagnóstico em `LibertyEdge.ResolutionUnlock.log` (sessão atual) e `.prev.log` (sessão anterior), na pasta do
-jogo. Se o jogo fechar com erro, `LibertyEdge.ResolutionUnlock.crash.log` registra em qual módulo (jogo, mod ou
-driver) aconteceu.
+Diagnóstico: com `Log = 1`, o mod grava na pasta do jogo `LibertyEdge.ResolutionUnlock.log` (sessão atual),
+`.prev.log` (sessão anterior) e, se o jogo fechar com erro, `.crash.log` com o módulo (jogo, mod ou driver) onde
+aconteceu. Por padrão não grava nada.
 
 ## Setup usado no desenvolvimento
 

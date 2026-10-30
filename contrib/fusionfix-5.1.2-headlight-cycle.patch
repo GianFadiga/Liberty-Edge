@@ -1,8 +1,8 @@
 diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
-index b0cd2af..c1dcf65 100644
+index b0cd2af..0b15755 100644
 --- a/data/plugins/GTAIV.EFLC.FusionFix.ini
 +++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
-@@ -104,6 +104,12 @@ ManualTurnIndicators = 0                      // legacy: makes "Automatic" behav
+@@ -104,6 +104,11 @@ ManualTurnIndicators = 0                      // legacy: makes "Automatic" behav
  LeftIndicatorKey = 0xDB                       // VK_OEM_4, the Left Brace key
  RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
  
@@ -10,23 +10,20 @@ index b0cd2af..c1dcf65 100644
 +CycleHeadlights = 0                           // 1: the headlight key cycles Automatic -> High beam -> Low beam -> Off (automatic stays the default)
 +HeadlightKey = 0x48                           // H; must be the same key as the game's headlight control
 +ShowNotice = 1                                // shows the new headlight state on screen
-+HeadlightDebug = 0                            // 1: writes HeadlightDebug.log next to GTAIV.exe (which vehicle bytes change on each headlight key press)
 +
  [EXPERIMENTAL]
  DisplayMemoryStats = 0                        // while the FPS Counter is enabled, it prints some memory counters alongside, like for used streaming memory and memory used by the entire process
  ReflectionMSAAQuality = 0                     // Applies MSAA to the reflection maps (exterior, interior, water, mirror) like on Xbox 360. Valid options: 2|4|8, other values are ignored and disable this feature.
 diff --git a/source/headlightcycle.ixx b/source/headlightcycle.ixx
 new file mode 100644
-index 0000000..926dc03
+index 0000000..891dc02
 --- /dev/null
 +++ b/source/headlightcycle.ixx
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,98 @@
 +module;
 +
 +#include <common.hxx>
 +#include <unordered_map>
-+#include <vector>
-+#include <cstdio>
 +
 +export module headlightcycle;
 +
@@ -38,7 +35,7 @@ index 0000000..926dc03
 +//   Automatic -> High beam -> Low beam (forced on) -> Off -> Automatic
 +// FORCE_CAR_LIGHTS forces the headlights on/off but does not touch the high beam, which the game toggles on every
 +// press of its headlight key. The high beam is a flag in the vehicle (bit 0x02 of the byte at +0xF19 on 1.2.0.59,
-+// found with HeadlightDebug), so the cycle sets that bit itself every frame for the state it is in:
++// found by watching which bytes change on each press), so the cycle sets that bit itself every frame for the state it is in:
 +//   0 Automatic: FORCE_CAR_LIGHTS 0 (game default), high beam off
 +//   1 High beam: FORCE_CAR_LIGHTS 0, high beam on
 +//   2 Low beam : FORCE_CAR_LIGHTS 2 (on), high beam off
@@ -46,57 +43,6 @@ index 0000000..926dc03
 +// The vehicle layout differs between game versions by 0x50 bytes. The layout is confirmed at runtime from the byte
 +// that FORCE_CAR_LIGHTS writes (+0x10C2 or +0x1112) before the high beam bit is touched.
 +// The state is kept per vehicle, so getting back into a car resumes its cycle.
-+
-+// Debug aid ([HEADLIGHTS] HeadlightDebug = 1): finds where the vehicle keeps its high beam state. Every frame the player's
-+// vehicle (first 0x1800 bytes) is snapshotted; bytes that change on their own are learnt as noise. When the headlight
-+// key is pressed, the bytes that differ 10 frames later (and are not noise) are written to HeadlightDebug.log.
-+namespace HeadlightDebug
-+{
-+    constexpr size_t kSize = 0x1800;
-+    std::vector<uint8_t> prev, pre, noise;
-+    int countdown = -1;
-+    int presses = 0;
-+    void* lastVeh = nullptr;
-+
-+    bool Copy(void* src, std::vector<uint8_t>& dst)
-+    {
-+        dst.resize(kSize);
-+        __try { memcpy(dst.data(), src, kSize); return true; }
-+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
-+    }
-+
-+    void Log(const char* text)
-+    {
-+        wchar_t path[MAX_PATH];
-+        GetModuleFileNameW(NULL, path, MAX_PATH);
-+        std::wstring p = path; p = p.substr(0, p.find_last_of(L"\\/") + 1) + L"HeadlightDebug.log";
-+        FILE* f = nullptr;
-+        if (_wfopen_s(&f, p.c_str(), L"a") == 0 && f) { fputs(text, f); fclose(f); }
-+    }
-+
-+    void Frame(void* veh, bool pressed, int step)
-+    {
-+        if (!veh) { lastVeh = nullptr; countdown = -1; return; }
-+        std::vector<uint8_t> cur;
-+        if (!Copy(veh, cur)) return;
-+        if (veh != lastVeh) { lastVeh = veh; prev = cur; noise.assign(kSize, 0); countdown = -1; return; }
-+        if (pressed) { pre = prev; countdown = 10; presses++; }
-+        else if (countdown < 0)
-+            for (size_t i = 0; i < kSize; i++) if (cur[i] != prev[i]) noise[i] = 1;
-+        if (countdown > 0) countdown--;
-+        else if (countdown == 0)
-+        {
-+            countdown = -1;
-+            std::string out = std::format("press {} (cycle step {}), vehicle {}:", presses, step, veh);
-+            int n = 0;
-+            for (size_t i = 0; i < kSize && n < 64; i++)
-+                if (!noise[i] && cur[i] != pre[i]) { out += std::format(" +0x{:X}:{:02X}->{:02X}", i, pre[i], cur[i]); n++; }
-+            out += "\n";
-+            Log(out.c_str());
-+        }
-+        prev = std::move(cur);
-+    }
-+}
 +
 +class HeadlightCycle
 +{
@@ -109,7 +55,6 @@ index 0000000..926dc03
 +            static bool bEnabled = iniReader.ReadInteger("HEADLIGHTS", "CycleHeadlights", 0) != 0;
 +            static int32_t nKey = iniReader.ReadInteger("HEADLIGHTS", "HeadlightKey", 'H');
 +            static bool bNotice = iniReader.ReadInteger("HEADLIGHTS", "ShowNotice", 1) != 0;
-+            static bool bDebug = iniReader.ReadInteger("HEADLIGHTS", "HeadlightDebug", 0) != 0;
 +            if (!bEnabled)
 +                return;
 +
@@ -131,8 +76,6 @@ index 0000000..926dc03
 +                bool pressed = down && !prevDown;
 +                prevDown = down;
 +                bool driving = car && driver == player;
-+                if (bDebug)
-+                    HeadlightDebug::Frame(driving ? FindPlayerVehicle(0) : nullptr, driving && pressed, driving ? (steps[car] + (pressed ? 1 : 0)) % 4 : 0);
 +
 +                if (steps.size() > 32)
 +                    steps.clear();
