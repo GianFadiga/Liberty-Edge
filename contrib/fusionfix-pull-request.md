@@ -27,4 +27,4 @@ Implementation: `VehicleState` gets `manual_active`, set when the player switche
 when it is switched off (or hazards are toggled); the automatic block runs when the mode allows it and no manual
 blinker/hazard is active.
 
-Tested in game on a 5.1.2 backport (same logic, menu row via frontend_menus.xml): GTA IV CE 1.2.0.59.
+Tested in game on a 5.1.2 backport (same logic, menu row via frontend_menus.xml): GTA IV CE 1.2.0.59. <!-- TODO: confirm after the in-game test -->
