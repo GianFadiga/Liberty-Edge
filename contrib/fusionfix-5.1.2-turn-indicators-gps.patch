@@ -1,15 +1,16 @@
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index 06c273b..67acb0f 100644
+index 06c273b..8e847af 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
-@@ -69,6 +69,57 @@ namespace BumperGate
+@@ -69,6 +69,91 @@ namespace BumperGate
      }
  }
  
-+// GPS-driven blinkers: with a waypoint set, the automatic blinkers also follow the GPS route, the way the GPS voice
-+// does. GENERATE_DIRECTIONS (the call behind the GPS voice) gives the next instruction towards the waypoint:
-+// 0 none, 1 turn right, 2 turn left, 3 straight on, 4 turn around (found by driving logged routes). It reports a turn
-+// from shortly before the junction until the turn is made, so the blinker comes on ahead of it and goes off after.
++// GPS-driven blinkers: with a GPS route (a waypoint set on the map, or a mission destination), the automatic
++// blinkers also follow the route, the way the GPS voice does. GENERATE_DIRECTIONS (the call behind the GPS voice)
++// gives the next instruction towards a point: 0 none, 1 turn right, 2 turn left, 3 straight on, 4 turn around
++// (found by driving logged routes). It reports a turn from shortly before the junction until the turn is made.
++// The route target is the waypoint if one is set, otherwise the blip with the route flag (SET_ROUTE).
 +namespace GpsBlinkers
 +{
 +    // FusionFix's NativeInvoke only copies Vector3 out-parameters back for natives with a return value, and these two
@@ -26,7 +27,19 @@ index 06c273b..67acb0f 100644
 +        }
 +    }
 +
-+    constexpr uint32_t BLIP_COORD = 4, SPRITE_WAYPOINT = 8;
++    constexpr uint32_t SPRITE_WAYPOINT = 8;
++    constexpr int32_t MaxBlips = 1500;      // CRadar's blip array (index <= 0x5DB)
++    constexpr uint16_t BLIP_FLAG_ROUTE = 0x10;
++    uint8_t** blips = nullptr;              // array of blip pointers; a blip starts with its 16-bit generation
++    bool debug = false;
++
++    void Init()
++    {
++        // mov eax, [eax*4+blips]; cmp byte ptr [eax+8], 0; jnz; mov eax, ... (the blip flag readers)
++        auto pattern = hook::pattern("8B 04 85 ? ? ? ? 80 78 08 00 75 0C A1");
++        if (!pattern.empty())
++            blips = *pattern.get_first<uint8_t**>(3);
++    }
 +
 +    // 0 none, 1 left, 2 right (the turn indicator directions)
 +    int Direction()
@@ -38,20 +51,41 @@ index 06c273b..67acb0f 100644
 +            return last;
 +        timer = 0.0f;
 +        last = 0;
-+        Blip b = Natives::GetFirstBlipInfoId(BLIP_COORD);
-+        for (int n = 0; n < 64 && b && Natives::DoesBlipExist(b); n++, b = Natives::GetNextBlipInfoId(BLIP_COORD))
++        if (!blips)
++            return 0;
++
++        Blip waypoint = 0, route = 0;
++        for (int32_t i = 0; i < MaxBlips && !waypoint; i++)
 +        {
-+            if (Natives::GetBlipSprite(b) != SPRITE_WAYPOINT)
++            uint8_t* b = blips[i];
++            if (!b)
 +                continue;
-+            Vector3 target{};
-+            InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GET_BLIP_COORDS), b, &target);
-+            if (target.fX == 0.0f && target.fY == 0.0f)
-+                break;
-+            int32_t instruction = 0;
-+            Vector3 unused{};
-+            InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GENERATE_DIRECTIONS), target.fX, target.fY, target.fZ, &instruction, &unused);
-+            last = (instruction == 2) ? 1 : (instruction == 1) ? 2 : 0;
-+            break;
++            Blip handle = (Blip)((uint32_t)*(uint16_t*)b << 16 | (uint32_t)i);
++            if (Natives::GetBlipSprite(handle) == SPRITE_WAYPOINT)
++                waypoint = handle;
++            else if (!route && b[8] && (*(uint16_t*)(b + 0x20) & BLIP_FLAG_ROUTE))
++                route = handle;
++        }
++        Blip target = waypoint ? waypoint : route;
++        if (!target)
++        {
++            if (debug)
++                Natives::PrintStringWithLiteralStringNow((char*)"STRING", (void*)"GPS: no route", 300, true);
++            return 0;
++        }
++        Vector3 pos{};
++        InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GET_BLIP_COORDS), target, &pos);
++        int32_t instruction = 0;
++        Vector3 unused{};
++        InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GENERATE_DIRECTIONS), pos.fX, pos.fY, pos.fZ, &instruction, &unused);
++        last = (instruction == 2) ? 1 : (instruction == 1) ? 2 : 0;
++        if (debug)
++        {
++            static const char* names[] = { "none", "turn right", "turn left", "straight on", "turn around" };
++            static char text[96];
++            snprintf(text, sizeof(text), "GPS (%s): %s", waypoint ? "waypoint" : "mission route",
++                (instruction >= 0 && instruction <= 4) ? names[instruction] : "?");
++            Natives::PrintStringWithLiteralStringNow((char*)"STRING", (void*)text, 300, true);
 +        }
 +        return last;
 +    }
@@ -60,15 +94,17 @@ index 06c273b..67acb0f 100644
  // Struct to hold all vehicle state data
  struct VehicleState
  {
-@@ -196,6 +247,7 @@ public:
+@@ -196,6 +281,9 @@ public:
              static bool bManualTurnIndicators = iniReader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
              static uint32_t nLeftIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
              static uint32_t nRightIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
 +            static bool bGpsBlinkers = iniReader.ReadInteger("TURNINDICATORS", "GpsTurnIndicators", 1) != 0;
++            GpsBlinkers::debug = iniReader.ReadInteger("TURNINDICATORS", "GpsTurnIndicatorsDebug", 0) != 0;
++            GpsBlinkers::Init();
              BumperGate::Install();
  
              struct VehicleFlags
-@@ -662,6 +714,9 @@ public:
+@@ -662,6 +750,9 @@ public:
                                  current_turn_direction = 1; // Left
                              else if (m_fSteerAngle < -STEER_THRESHOLD)
                                  current_turn_direction = 2; // Right
