@@ -1,5 +1,5 @@
 diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
-index c575020..6b07c0c 100644
+index c575020..b0cd2af 100644
 --- a/data/plugins/GTAIV.EFLC.FusionFix.ini
 +++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
 @@ -100,7 +100,7 @@ SlightlyIncreaseRadiusWithDistance = 1        // slight increase in corona radiu
@@ -7,12 +7,12 @@ index c575020..6b07c0c 100644
  
  [TURNINDICATORS]
 -ManualTurnIndicators = 0                      // enable manual turn indicators, tap LB or RB on gamepad to activate
-+ManualTurnIndicators = 0                      // legacy: makes "Automatic" behave as "Manual". Use Game > Turn Indicators: Manual or Manual + Auto instead (tap LB/RB or the keys below)
++ManualTurnIndicators = 0                      // legacy: makes "Automatic" behave as "Manual". Use Game > Turn Indicators: On (manual) or Automatic + manual instead (tap LB/RB or the keys below)
  LeftIndicatorKey = 0xDB                       // VK_OEM_4, the Left Brace key
  RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
  
 diff --git a/data/update/TBoGT/common/data/frontend_menus.xml b/data/update/TBoGT/common/data/frontend_menus.xml
-index 8ecb165..7c1c2f4 100644
+index 8ecb165..4a4a81f 100644
 --- a/data/update/TBoGT/common/data/frontend_menus.xml
 +++ b/data/update/TBoGT/common/data/frontend_menus.xml
 @@ -414,6 +414,13 @@
@@ -22,8 +22,8 @@ index 8ecb165..7c1c2f4 100644
 +    <menupc enum="MENU_DISPLAY_TURNINDICATORS">
 +      <options text="MO_OFF" action="ACTION_NONE" value="0" />
 +      <options text="Automatic" action="ACTION_NONE" value="1" />
-+      <options text="Manual" action="ACTION_NONE" value="2" />
-+      <options text="Manual + Auto" action="ACTION_NONE" value="3" />
++      <options text="On (manual)" action="ACTION_NONE" value="2" />
++      <options text="Automatic + manual" action="ACTION_NONE" value="3" />
 +    </menupc>
 +
      <menupc enum="MENU_DISPLAY_ANTIALIASING">
@@ -48,7 +48,7 @@ index 8ecb165..7c1c2f4 100644
  			<optionspc action="MENUOPT_ADJUST" label="Wardrobe Fading" value="PREF_NOWARDROBEFADING" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
 diff --git a/data/update/TLAD/common/data/frontend_menus.xml b/data/update/TLAD/common/data/frontend_menus.xml
-index ffc6383..ac30988 100644
+index ffc6383..ea23f73 100644
 --- a/data/update/TLAD/common/data/frontend_menus.xml
 +++ b/data/update/TLAD/common/data/frontend_menus.xml
 @@ -490,6 +490,13 @@
@@ -58,8 +58,8 @@ index ffc6383..ac30988 100644
 +    <menupc enum="MENU_DISPLAY_TURNINDICATORS">
 +      <options text="MO_OFF" action="ACTION_NONE" value="0" />
 +      <options text="Automatic" action="ACTION_NONE" value="1" />
-+      <options text="Manual" action="ACTION_NONE" value="2" />
-+      <options text="Manual + Auto" action="ACTION_NONE" value="3" />
++      <options text="On (manual)" action="ACTION_NONE" value="2" />
++      <options text="Automatic + manual" action="ACTION_NONE" value="3" />
 +    </menupc>
 +
      <menupc enum="MENU_DISPLAY_ANTIALIASING">
@@ -84,7 +84,7 @@ index ffc6383..ac30988 100644
  			<optionspc action="MENUOPT_ADJUST" label="Stop Taxi" value="PREF_STOPTAXI" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
              <optionspc action="MENUOPT_ADJUST" label="Ladders Climb" value="PREF_AUTOCLIMBLADDERS" scaler="2" displayValue="MENU_DISPLAY_ON_OFF" />
 diff --git a/data/update/common/data/frontend_menus.xml b/data/update/common/data/frontend_menus.xml
-index e58e210..0b4f1bf 100644
+index e58e210..c51d040 100644
 --- a/data/update/common/data/frontend_menus.xml
 +++ b/data/update/common/data/frontend_menus.xml
 @@ -347,6 +347,13 @@
@@ -94,8 +94,8 @@ index e58e210..0b4f1bf 100644
 +        <menupc enum="MENU_DISPLAY_TURNINDICATORS">
 +          <options text="MO_OFF" action="ACTION_NONE" value="0" />
 +          <options text="Automatic" action="ACTION_NONE" value="1" />
-+          <options text="Manual" action="ACTION_NONE" value="2" />
-+          <options text="Manual + Auto" action="ACTION_NONE" value="3" />
++          <options text="On (manual)" action="ACTION_NONE" value="2" />
++          <options text="Automatic + manual" action="ACTION_NONE" value="3" />
 +        </menupc>
 +
          <menupc enum="MENU_DISPLAY_ANTIALIASING">
@@ -133,7 +133,7 @@ index 2642578..1437f79 100644
              { 0, "PREF_GRAPHICSAPI",            "MAIN",       "GraphicsAPI",                        "MENU_DISPLAY_GRAPHICS_API",                           0, nullptr, 0, 1 },
              { 0, "PREF_BULLETTRACES",           "MISC",       "AlwaysShowBulletTraces",             "",                           0, nullptr, 0, 1 },
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index d90282d..776a110 100644
+index d90282d..e4fc82b 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
 @@ -38,6 +38,7 @@ struct VehicleState
@@ -148,7 +148,7 @@ index d90282d..776a110 100644
              FusionFix::onGameProcessEvent() += [&]()
              {
                  static auto ti = FusionFixSettings.GetRef("PREF_TURNINDICATORS");
-+                // Turn Indicators: 0 Off, 1 Automatic, 2 Manual, 3 Manual + Automatic (changes apply live).
++                // Turn Indicators: 0 Off, 1 Automatic, 2 On (manual), 3 Automatic + manual (changes apply live).
 +                // [TURNINDICATORS] ManualTurnIndicators = 1 keeps its old meaning: Automatic becomes Manual.
 +                const int tiMode = ti->get();
 +                const bool bManualMode = tiMode == 2 || tiMode == 3 || (tiMode == 1 && bManualTurnIndicators);
@@ -226,7 +226,7 @@ index d90282d..776a110 100644
                          }
                          else
 +                            state.manual_active = false;
-+                        // Automatic blinkers (in Manual + Automatic only while no blinker or hazard was switched on by hand)
++                        // Automatic blinkers (in Automatic + manual only while no blinker or hazard was switched on by hand)
 +                        if (bAutoMode && !state.manual_active && !state.manual_hazard)
                          {
                              // Process player vehicle with turn indicators

@@ -1,13 +1,13 @@
-From 549b63a8c920bcd7f9bfa91ed398b877d6bb2b9f Mon Sep 17 00:00:00 2001
+From d918f1e3f9d3dfa6b4230c168427041edf16bc4e Mon Sep 17 00:00:00 2001
 From: GianFadiga <gianluccafadigarissato@gmail.com>
 Date: Thu, 29 Oct 2026 21:01:10 -0300
-Subject: [PATCH] Turn indicators: choose Off / Automatic / Manual / Manual +
- Automatic in the menu
+Subject: [PATCH] Turn indicators: choose Off / Automatic / On (manual) /
+ Automatic + manual in the menu
 
 MISC.TurnIndicators becomes a choice (0 and 1 keep their meaning) and applies live. The new
-Manual + Automatic mode keeps the automatic steering-based blinkers while no blinker or hazard was
+Automatic + manual mode keeps the automatic steering-based blinkers while no blinker or hazard was
 switched on by hand; a manual blinker takes priority until the player switches it off.
-TURNINDICATORS.ManualTurnIndicators = 1 keeps its old meaning (Automatic behaves as Manual).
+TURNINDICATORS.ManualTurnIndicators = 1 keeps its old meaning (Automatic behaves as On (manual)).
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J2EEBdczaXVKRDjePb6ox8
@@ -24,7 +24,7 @@ Claude-Session: https://claude.ai/code/session_01J2EEBdczaXVKRDjePb6ox8
  9 files changed, 62 insertions(+), 24 deletions(-)
 
 diff --git a/settings/GTAIV.EFLC.FusionFix.de.json b/settings/GTAIV.EFLC.FusionFix.de.json
-index 008bcca..0b0ecbe 100644
+index 008bcca..0e2b8ab 100644
 --- a/settings/GTAIV.EFLC.FusionFix.de.json
 +++ b/settings/GTAIV.EFLC.FusionFix.de.json
 @@ -227,7 +227,7 @@
@@ -32,7 +32,7 @@ index 008bcca..0b0ecbe 100644
    "MISC.TreeAlpha.description": "Wie die Blätter von Bäumen ausgeschnitten werden.",
    "MISC.TreeLighting.description": "Wie Bäume beleuchtet werden.",
 -  "MISC.TurnIndicators.description": "Fahrzeuge des Spielers verwenden ihre Blinker.",
-+  "MISC.TurnIndicators.description": "Fahrzeuge des Spielers verwenden ihre Blinker. Automatisch: beim Abbiegen. Manuell: LB oder RB am Controller oder die Blinkertasten antippen. Manuell + automatisch: beides; ein von Hand eingeschalteter Blinker hat Vorrang, bis er ausgeschaltet wird.",
++  "MISC.TurnIndicators.description": "Fahrzeuge des Spielers verwenden ihre Blinker. Automatisch: sie blinken beim Abbiegen von selbst. An (manuell): LB oder RB am Controller oder die Blinkertasten antippen. Automatisch + manuell: beides; ein von Hand eingeschalteter Blinker hat Vorrang, bis er ausgeschaltet wird.",
    "MISC.UnclampLighting.description": "Sonnenlicht reicht weiter.",
    "MISC.ZoomedMovement.description": "Erlaubt Bewegung beim Zielen mit einer Zoom-Waffe.",
    "MO_ALT": "Alternativ",
@@ -41,7 +41,7 @@ index 008bcca..0b0ecbe 100644
    "TURNINDICATORS.LeftIndicatorKey.description": "Die Taste für den linken Blinker, ein Virtual-Key-Code (0xDB ist [).",
    "TURNINDICATORS.ManualTurnIndicators": "Manuelle Blinker",
 -  "TURNINDICATORS.ManualTurnIndicators.description": "Blinker von Hand: LB oder RB am Controller antippen oder die Tasten unten.",
-+  "TURNINDICATORS.ManualTurnIndicators.description": "Veraltet: lässt Automatisch wie Manuell arbeiten. Die Blinker-Option bietet Manuell und Manuell + automatisch.",
++  "TURNINDICATORS.ManualTurnIndicators.description": "Veraltet: lässt Automatisch wie An (manuell) arbeiten. Die Blinker-Option bietet An (manuell) und Automatisch + manuell.",
    "TURNINDICATORS.RightIndicatorKey": "Taste für rechten Blinker",
    "TURNINDICATORS.RightIndicatorKey.description": "Die Taste für den rechten Blinker, ein Virtual-Key-Code (0xDD ist ]).",
    "UnclampLighting": "Erweiterte Sonnenlicht-Reichweite",
@@ -52,11 +52,11 @@ index 008bcca..0b0ecbe 100644
 -  "ff.note.d3d9on12": "Installiere D3D9On12 auf der Seite Grafikverbesserungen in FusionFixHub, um DirectX 12 zu aktivieren."
 +  "ff.note.d3d9on12": "Installiere D3D9On12 auf der Seite Grafikverbesserungen in FusionFixHub, um DirectX 12 zu aktivieren.",
 +  "turnindicators.automatic": "Automatisch",
-+  "turnindicators.both": "Manuell + automatisch",
-+  "turnindicators.manual": "Manuell"
++  "turnindicators.both": "Automatisch + manuell",
++  "turnindicators.manual": "An (manuell)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.en.json b/settings/GTAIV.EFLC.FusionFix.en.json
-index fecc2b9..f5aebd2 100644
+index fecc2b9..c3246df 100644
 --- a/settings/GTAIV.EFLC.FusionFix.en.json
 +++ b/settings/GTAIV.EFLC.FusionFix.en.json
 @@ -227,7 +227,7 @@
@@ -64,7 +64,7 @@ index fecc2b9..f5aebd2 100644
    "MISC.TreeAlpha.description": "How the leaves of trees are cut out.",
    "MISC.TreeLighting.description": "How trees are lit.",
 -  "MISC.TurnIndicators.description": "Vehicles of the player use their turn indicators.",
-+  "MISC.TurnIndicators.description": "The player's vehicles use their turn indicators. Automatic: when turning. Manual: tap LB or RB on a controller, or the turn indicator keys. Manual + Automatic: both; a blinker switched on by hand takes priority until it is switched off.",
++  "MISC.TurnIndicators.description": "The player's vehicles use their turn indicators. Automatic: they blink by themselves when turning. On (manual): tap LB or RB on a controller, or the turn indicator keys. Automatic + manual: both; a blinker switched on by hand takes priority until it is switched off.",
    "MISC.UnclampLighting.description": "Sunlight reaches further.",
    "MISC.ZoomedMovement.description": "Allows moving while aiming with a zoomed weapon.",
    "MO_ALT": "Alternative",
@@ -73,7 +73,7 @@ index fecc2b9..f5aebd2 100644
    "TURNINDICATORS.LeftIndicatorKey.description": "The key of the left turn indicator, a virtual-key code (0xDB is [).",
    "TURNINDICATORS.ManualTurnIndicators": "Manual Turn Indicators",
 -  "TURNINDICATORS.ManualTurnIndicators.description": "Turn indicators by hand: tap LB or RB on a controller, or the keys below.",
-+  "TURNINDICATORS.ManualTurnIndicators.description": "Legacy: makes Automatic behave as Manual. Turn Indicators offers Manual and Manual + Automatic.",
++  "TURNINDICATORS.ManualTurnIndicators.description": "Legacy: makes Automatic behave as On (manual). Turn Indicators offers On (manual) and Automatic + manual.",
    "TURNINDICATORS.RightIndicatorKey": "Right Indicator Key",
    "TURNINDICATORS.RightIndicatorKey.description": "The key of the right turn indicator, a virtual-key code (0xDD is ]).",
    "UnclampLighting": "Extended Sunlight Reach",
@@ -84,11 +84,11 @@ index fecc2b9..f5aebd2 100644
 -  "ff.note.d3d9on12": "Install D3D9On12 on FusionFixHub's Graphics enhancements page to enable DirectX 12."
 +  "ff.note.d3d9on12": "Install D3D9On12 on FusionFixHub's Graphics enhancements page to enable DirectX 12.",
 +  "turnindicators.automatic": "Automatic",
-+  "turnindicators.both": "Manual + Automatic",
-+  "turnindicators.manual": "Manual"
++  "turnindicators.both": "Automatic + manual",
++  "turnindicators.manual": "On (manual)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.es.json b/settings/GTAIV.EFLC.FusionFix.es.json
-index 355adeb..d151c8a 100644
+index 355adeb..129fb8f 100644
 --- a/settings/GTAIV.EFLC.FusionFix.es.json
 +++ b/settings/GTAIV.EFLC.FusionFix.es.json
 @@ -227,7 +227,7 @@
@@ -96,7 +96,7 @@ index 355adeb..d151c8a 100644
    "MISC.TreeAlpha.description": "Cómo se recortan las hojas de los árboles.",
    "MISC.TreeLighting.description": "Cómo se iluminan los árboles.",
 -  "MISC.TurnIndicators.description": "Los vehículos del jugador usan sus intermitentes.",
-+  "MISC.TurnIndicators.description": "Los vehículos del jugador usan sus intermitentes. Automáticos: al girar. Manuales: pulsa LB o RB en el mando o las teclas de intermitente. Manuales + automáticos: ambos; un intermitente encendido a mano tiene prioridad hasta que se apaga.",
++  "MISC.TurnIndicators.description": "Los vehículos del jugador usan sus intermitentes. Automáticos: se encienden solos al girar. Activados (manuales): pulsa LB o RB en el mando o las teclas de intermitente. Automáticos + manuales: ambos; un intermitente encendido a mano tiene prioridad hasta que se apaga.",
    "MISC.UnclampLighting.description": "La luz solar llega más lejos.",
    "MISC.ZoomedMovement.description": "Permite moverse al apuntar con un arma con zoom.",
    "MO_ALT": "Alternativo",
@@ -105,7 +105,7 @@ index 355adeb..d151c8a 100644
    "TURNINDICATORS.LeftIndicatorKey.description": "La tecla del intermitente izquierdo, un código de tecla virtual (0xDB es [).",
    "TURNINDICATORS.ManualTurnIndicators": "Intermitentes manuales",
 -  "TURNINDICATORS.ManualTurnIndicators.description": "Intermitentes a mano: toca LB o RB en el mando, o las teclas de abajo.",
-+  "TURNINDICATORS.ManualTurnIndicators.description": "Obsoleto: hace que Automáticos funcione como Manuales. Intermitentes ofrece Manuales y Manuales + automáticos.",
++  "TURNINDICATORS.ManualTurnIndicators.description": "Obsoleto: hace que Automáticos funcione como Activados (manuales). Intermitentes ofrece Activados (manuales) y Automáticos + manuales.",
    "TURNINDICATORS.RightIndicatorKey": "Tecla del intermitente derecho",
    "TURNINDICATORS.RightIndicatorKey.description": "La tecla del intermitente derecho, un código de tecla virtual (0xDD es ]).",
    "UnclampLighting": "Alcance ampliado de la luz solar",
@@ -116,11 +116,11 @@ index 355adeb..d151c8a 100644
 -  "ff.note.d3d9on12": "Instala D3D9On12 en la página de mejoras gráficas de FusionFixHub para activar DirectX 12."
 +  "ff.note.d3d9on12": "Instala D3D9On12 en la página de mejoras gráficas de FusionFixHub para activar DirectX 12.",
 +  "turnindicators.automatic": "Automáticos",
-+  "turnindicators.both": "Manuales + automáticos",
-+  "turnindicators.manual": "Manuales"
++  "turnindicators.both": "Automáticos + manuales",
++  "turnindicators.manual": "Activados (manuales)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.fr.json b/settings/GTAIV.EFLC.FusionFix.fr.json
-index 3fd8748..739fe70 100644
+index 3fd8748..f7d1a78 100644
 --- a/settings/GTAIV.EFLC.FusionFix.fr.json
 +++ b/settings/GTAIV.EFLC.FusionFix.fr.json
 @@ -227,7 +227,7 @@
@@ -128,7 +128,7 @@ index 3fd8748..739fe70 100644
    "MISC.TreeAlpha.description": "Comment les feuilles des arbres sont découpées.",
    "MISC.TreeLighting.description": "Comment les arbres sont éclairés.",
 -  "MISC.TurnIndicators.description": "Les véhicules du joueur utilisent leurs clignotants.",
-+  "MISC.TurnIndicators.description": "Les véhicules du joueur utilisent leurs clignotants. Automatiques : en tournant. Manuels : appuyez sur LB ou RB à la manette ou sur les touches de clignotant. Manuels + automatiques : les deux ; un clignotant allumé à la main reste prioritaire jusqu'à ce qu'il soit éteint.",
++  "MISC.TurnIndicators.description": "Les véhicules du joueur utilisent leurs clignotants. Automatiques : ils s'allument seuls en tournant. Activés (manuels) : appuyez sur LB ou RB à la manette ou sur les touches de clignotant. Automatiques + manuels : les deux ; un clignotant allumé à la main reste prioritaire jusqu'à ce qu'il soit éteint.",
    "MISC.UnclampLighting.description": "La lumière du soleil porte plus loin.",
    "MISC.ZoomedMovement.description": "Permet de se déplacer en visant avec une arme à zoom.",
    "MO_ALT": "Alternatif",
@@ -137,7 +137,7 @@ index 3fd8748..739fe70 100644
    "TURNINDICATORS.LeftIndicatorKey.description": "La touche du clignotant gauche, un code de touche virtuelle (0xDB est [).",
    "TURNINDICATORS.ManualTurnIndicators": "Clignotants manuels",
 -  "TURNINDICATORS.ManualTurnIndicators.description": "Clignotants à la main : appuyez sur LB ou RB à la manette, ou sur les touches ci-dessous.",
-+  "TURNINDICATORS.ManualTurnIndicators.description": "Obsolète : fait fonctionner Automatiques comme Manuels. Clignotants propose Manuels et Manuels + automatiques.",
++  "TURNINDICATORS.ManualTurnIndicators.description": "Obsolète : fait fonctionner Automatiques comme Activés (manuels). Clignotants propose Activés (manuels) et Automatiques + manuels.",
    "TURNINDICATORS.RightIndicatorKey": "Touche du clignotant droit",
    "TURNINDICATORS.RightIndicatorKey.description": "La touche du clignotant droit, un code de touche virtuelle (0xDD est ]).",
    "UnclampLighting": "Portée étendue de la lumière du soleil",
@@ -148,11 +148,11 @@ index 3fd8748..739fe70 100644
 -  "ff.note.d3d9on12": "Installez D3D9On12 depuis la page Améliorations graphiques de FusionFixHub pour activer DirectX 12."
 +  "ff.note.d3d9on12": "Installez D3D9On12 depuis la page Améliorations graphiques de FusionFixHub pour activer DirectX 12.",
 +  "turnindicators.automatic": "Automatiques",
-+  "turnindicators.both": "Manuels + automatiques",
-+  "turnindicators.manual": "Manuels"
++  "turnindicators.both": "Automatiques + manuels",
++  "turnindicators.manual": "Activés (manuels)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.it.json b/settings/GTAIV.EFLC.FusionFix.it.json
-index fec01b5..b58832a 100644
+index fec01b5..08bc47e 100644
 --- a/settings/GTAIV.EFLC.FusionFix.it.json
 +++ b/settings/GTAIV.EFLC.FusionFix.it.json
 @@ -227,7 +227,7 @@
@@ -160,7 +160,7 @@ index fec01b5..b58832a 100644
    "MISC.TreeAlpha.description": "Come vengono ritagliate le foglie degli alberi.",
    "MISC.TreeLighting.description": "Come vengono illuminati gli alberi.",
 -  "MISC.TurnIndicators.description": "I veicoli del giocatore usano gli indicatori di direzione.",
-+  "MISC.TurnIndicators.description": "I veicoli del giocatore usano gli indicatori di direzione. Automatici: in curva. Manuali: premi LB o RB sul controller o i tasti delle frecce. Manuali + automatici: entrambi; una freccia accesa a mano ha la precedenza finché non viene spenta.",
++  "MISC.TurnIndicators.description": "I veicoli del giocatore usano gli indicatori di direzione. Automatici: si accendono da soli in curva. Attivi (manuali): premi LB o RB sul controller o i tasti delle frecce. Automatici + manuali: entrambi; una freccia accesa a mano ha la precedenza finché non viene spenta.",
    "MISC.UnclampLighting.description": "La luce solare arriva più lontano.",
    "MISC.ZoomedMovement.description": "Permette di muoversi mentre si mira con un'arma con zoom.",
    "MO_ALT": "Alternativo",
@@ -169,7 +169,7 @@ index fec01b5..b58832a 100644
    "TURNINDICATORS.LeftIndicatorKey.description": "Il tasto dell'indicatore di direzione sinistro, un codice virtual-key (0xDB è [).",
    "TURNINDICATORS.ManualTurnIndicators": "Indicatori di direzione manuali",
 -  "TURNINDICATORS.ManualTurnIndicators.description": "Indicatori di direzione a mano: premi LB o RB sul controller, oppure i tasti qui sotto.",
-+  "TURNINDICATORS.ManualTurnIndicators.description": "Obsoleto: fa funzionare Automatici come Manuali. Indicatori di direzione offre Manuali e Manuali + automatici.",
++  "TURNINDICATORS.ManualTurnIndicators.description": "Obsoleto: fa funzionare Automatici come Attivi (manuali). Indicatori di direzione offre Attivi (manuali) e Automatici + manuali.",
    "TURNINDICATORS.RightIndicatorKey": "Tasto indicatore destro",
    "TURNINDICATORS.RightIndicatorKey.description": "Il tasto dell'indicatore di direzione destro, un codice virtual-key (0xDD è ]).",
    "UnclampLighting": "Estensione della portata della luce solare",
@@ -180,11 +180,11 @@ index fec01b5..b58832a 100644
 -  "ff.note.d3d9on12": "Installa D3D9On12 dalla pagina Miglioramenti grafici di FusionFixHub per attivare DirectX 12."
 +  "ff.note.d3d9on12": "Installa D3D9On12 dalla pagina Miglioramenti grafici di FusionFixHub per attivare DirectX 12.",
 +  "turnindicators.automatic": "Automatici",
-+  "turnindicators.both": "Manuali + automatici",
-+  "turnindicators.manual": "Manuali"
++  "turnindicators.both": "Automatici + manuali",
++  "turnindicators.manual": "Attivi (manuali)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.ja.json b/settings/GTAIV.EFLC.FusionFix.ja.json
-index 6a25413..8f199df 100644
+index 6a25413..459bcf8 100644
 --- a/settings/GTAIV.EFLC.FusionFix.ja.json
 +++ b/settings/GTAIV.EFLC.FusionFix.ja.json
 @@ -227,7 +227,7 @@
@@ -192,7 +192,7 @@ index 6a25413..8f199df 100644
    "MISC.TreeAlpha.description": "木の葉の切り抜き方です。",
    "MISC.TreeLighting.description": "木の照らされ方です。",
 -  "MISC.TurnIndicators.description": "プレイヤーの乗り物がウィンカーを使います。",
-+  "MISC.TurnIndicators.description": "プレイヤーの乗り物がウィンカーを使います。自動：曲がる時。手動：コントローラーのLB/RBかウィンカーキーを押す。手動＋自動：両方。手動で出したウィンカーは消すまで優先されます。",
++  "MISC.TurnIndicators.description": "プレイヤーの乗り物がウィンカーを使います。自動：曲がる時に自動で点滅。オン（手動）：コントローラーのLB/RBかウィンカーキーを押す。自動＋手動：両方。手動で出したウィンカーは消すまで優先されます。",
    "MISC.UnclampLighting.description": "日光がより遠くまで届きます。",
    "MISC.ZoomedMovement.description": "ズーム可能な武器で狙っている間も移動できます。",
    "MO_ALT": "代替案",
@@ -201,7 +201,7 @@ index 6a25413..8f199df 100644
    "TURNINDICATORS.LeftIndicatorKey.description": "左ウィンカーのキーです。仮想キーコードで指定します（0xDBは[）。",
    "TURNINDICATORS.ManualTurnIndicators": "手動ウィンカー",
 -  "TURNINDICATORS.ManualTurnIndicators.description": "ウィンカーを手動で操作します。コントローラーではLBまたはRBを軽く押すか、下記のキーを使います。",
-+  "TURNINDICATORS.ManualTurnIndicators.description": "旧設定：「自動」を「手動」として動作させます。ウィンカー設定で「手動」と「手動＋自動」を選べます。",
++  "TURNINDICATORS.ManualTurnIndicators.description": "旧設定：「自動」を「オン（手動）」として動作させます。ウィンカー設定で「オン（手動）」と「自動＋手動」を選べます。",
    "TURNINDICATORS.RightIndicatorKey": "右ウィンカーのキー",
    "TURNINDICATORS.RightIndicatorKey.description": "右ウィンカーのキーです。仮想キーコードで指定します（0xDDは]）。",
    "UnclampLighting": "日照範囲の拡大",
@@ -212,8 +212,8 @@ index 6a25413..8f199df 100644
 -  "ff.note.d3d9on12": "DirectX 12を有効にするには、FusionFixHubの「グラフィック強化」ページでD3D9On12をインストールしてください。"
 +  "ff.note.d3d9on12": "DirectX 12を有効にするには、FusionFixHubの「グラフィック強化」ページでD3D9On12をインストールしてください。",
 +  "turnindicators.automatic": "自動",
-+  "turnindicators.both": "手動＋自動",
-+  "turnindicators.manual": "手動"
++  "turnindicators.both": "自動＋手動",
++  "turnindicators.manual": "オン（手動）"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.json b/settings/GTAIV.EFLC.FusionFix.json
 index 0728c38..d9723f7 100644
@@ -233,7 +233,7 @@ index 0728c38..d9723f7 100644
      {
        "id": "MISC.AlwaysShowBulletTraces", "type": "bool", "default": 0,
 diff --git a/settings/GTAIV.EFLC.FusionFix.ru.json b/settings/GTAIV.EFLC.FusionFix.ru.json
-index 8af2c6d..5187b2e 100644
+index 8af2c6d..eb5f521 100644
 --- a/settings/GTAIV.EFLC.FusionFix.ru.json
 +++ b/settings/GTAIV.EFLC.FusionFix.ru.json
 @@ -227,7 +227,7 @@
@@ -241,7 +241,7 @@ index 8af2c6d..5187b2e 100644
    "MISC.TreeAlpha.description": "Как вырезаются листья деревьев.",
    "MISC.TreeLighting.description": "Как освещаются деревья.",
 -  "MISC.TurnIndicators.description": "Транспорт игрока использует указатели поворота.",
-+  "MISC.TurnIndicators.description": "Транспорт игрока использует указатели поворота. Автоматически: при повороте. Вручную: нажатие LB или RB на геймпаде или клавиш поворотников. Вручную + автоматически: оба; включённый вручную указатель имеет приоритет, пока его не выключат.",
++  "MISC.TurnIndicators.description": "Транспорт игрока использует указатели поворота. Автоматически: включаются сами при повороте. Вкл. (вручную): нажатие LB или RB на геймпаде или клавиш поворотников. Автоматически + вручную: оба; включённый вручную указатель имеет приоритет, пока его не выключат.",
    "MISC.UnclampLighting.description": "Солнечный свет достает дальше.",
    "MISC.ZoomedMovement.description": "Позволяет двигаться при прицеливании из оружия с приближением.",
    "MO_ALT": "Альтернативный",
@@ -250,7 +250,7 @@ index 8af2c6d..5187b2e 100644
    "TURNINDICATORS.LeftIndicatorKey.description": "Клавиша левого указателя поворота, код виртуальной клавиши (0xDB — это [).",
    "TURNINDICATORS.ManualTurnIndicators": "Ручные указатели поворота",
 -  "TURNINDICATORS.ManualTurnIndicators.description": "Указатели поворота вручную: нажатие LB или RB на геймпаде или клавиш ниже.",
-+  "TURNINDICATORS.ManualTurnIndicators.description": "Устаревшее: режим «Автоматически» работает как «Вручную». В «Указателях поворота» есть «Вручную» и «Вручную + автоматически».",
++  "TURNINDICATORS.ManualTurnIndicators.description": "Устаревшее: режим «Автоматически» работает как «Вкл. (вручную)». В «Указателях поворота» есть «Вкл. (вручную)» и «Автоматически + вручную».",
    "TURNINDICATORS.RightIndicatorKey": "Клавиша правого поворотника",
    "TURNINDICATORS.RightIndicatorKey.description": "Клавиша правого указателя поворота, код виртуальной клавиши (0xDD — это ]).",
    "UnclampLighting": "Увеличенная дистанция солнечного света",
@@ -261,11 +261,11 @@ index 8af2c6d..5187b2e 100644
 -  "ff.note.d3d9on12": "Установите D3D9On12 на странице «Graphics enhancements» в FusionFixHub, чтобы включить DirectX 12."
 +  "ff.note.d3d9on12": "Установите D3D9On12 на странице «Graphics enhancements» в FusionFixHub, чтобы включить DirectX 12.",
 +  "turnindicators.automatic": "Автоматически",
-+  "turnindicators.both": "Вручную + автоматически",
-+  "turnindicators.manual": "Вручную"
++  "turnindicators.both": "Автоматически + вручную",
++  "turnindicators.manual": "Вкл. (вручную)"
  }
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index ab7d6f9..febd015 100644
+index ab7d6f9..b42b921 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
 @@ -38,6 +38,7 @@ struct VehicleState
@@ -280,7 +280,7 @@ index ab7d6f9..febd015 100644
              FusionFix::onGameProcessEvent() += [&]()
              {
                  static auto ti = FusionFixSettings.GetRef("PREF_TURNINDICATORS");
-+                // Turn Indicators: 0 Off, 1 Automatic, 2 Manual, 3 Manual + Automatic (changes apply live).
++                // Turn Indicators: 0 Off, 1 Automatic, 2 On (manual), 3 Automatic + manual (changes apply live).
 +                // [TURNINDICATORS] ManualTurnIndicators = 1 keeps its old meaning: Automatic becomes Manual.
 +                const int tiMode = ti->get();
 +                const bool bManualMode = tiMode == 2 || tiMode == 3 || (tiMode == 1 && bManualTurnIndicators);
@@ -358,7 +358,7 @@ index ab7d6f9..febd015 100644
                          }
                          else
 +                            state.manual_active = false;
-+                        // Automatic blinkers (in Manual + Automatic only while no blinker or hazard was switched on by hand)
++                        // Automatic blinkers (in Automatic + manual only while no blinker or hazard was switched on by hand)
 +                        if (bAutoMode && !state.manual_active && !state.manual_hazard)
                          {
                              // Process player vehicle with turn indicators
