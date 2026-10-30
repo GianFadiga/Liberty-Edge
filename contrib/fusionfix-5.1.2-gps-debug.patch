@@ -1,0 +1,120 @@
+diff --git a/source/gpsdebug.ixx b/source/gpsdebug.ixx
+new file mode 100644
+index 0000000..b08b50d
+--- /dev/null
++++ b/source/gpsdebug.ixx
+@@ -0,0 +1,114 @@
++module;
++
++#include <common.hxx>
++#include <vector>
++#include <cstdio>
++
++export module gpsdebug;
++
++import common;
++import comvars;
++import natives;
++
++// Calibration aid for GPS-driven turn indicators ([TURNINDICATORS] GpsDebug = 1): writes GpsDebug.log next to
++// GTAIV.exe with the blips on the map (to find the waypoint/route target) and, while driving, what
++// GENERATE_DIRECTIONS (the call behind the GPS voice) returns towards that target, plus position and heading.
++// FusionFix's NativeInvoke copies Vector3 out-parameters back only for natives that return a value, so void natives
++// like GET_BLIP_COORDS and GENERATE_DIRECTIONS leave their vectors at zero. This calls a native and always copies back.
++template<typename... Args>
++static void InvokeWithVectors(uint32_t hash, Args... args)
++{
++    NativeContext cxt;
++    (cxt.Push(args), ...);
++    auto fn = NativeInvoke::GetNativeHandler(hash);
++    if (fn)
++    {
++        fn(&cxt);
++        static_cast<scrNativeCallContext&>(cxt).GetResult<int32_t>(0); // copies the vectors back
++    }
++}
++
++class GpsDebug
++{
++    static void Log(const std::string& text)
++    {
++        wchar_t path[MAX_PATH];
++        GetModuleFileNameW(NULL, path, MAX_PATH);
++        std::wstring p = path; p = p.substr(0, p.find_last_of(L"\\/") + 1) + L"GpsDebug.log";
++        FILE* f = nullptr;
++        if (_wfopen_s(&f, p.c_str(), L"a") == 0 && f) { fputs(text.c_str(), f); fputc('\n', f); fclose(f); }
++    }
++
++public:
++    GpsDebug()
++    {
++        FusionFix::onInitEventAsync() += []()
++        {
++            CIniReader iniReader("");
++            if (iniReader.ReadInteger("TURNINDICATORS", "GpsDebug", 0) == 0)
++                return;
++
++            FusionFix::onGameProcessEvent() += []()
++            {
++                static float timer = 0.0f;
++                timer += 1000.0f * Natives::Timestep();
++                if (timer < 250.0f)
++                    return;
++                timer = 0.0f;
++
++                Ped player = 0;
++                Natives::GetPlayerChar(Natives::ConvertIntToPlayerIndex(Natives::GetPlayerId()), &player);
++                if (!player || !Natives::IsCharInAnyCar(player))
++                    return;
++                Vehicle car = 0;
++                Natives::GetCarCharIsUsing(player, &car);
++                if (!car)
++                    return;
++
++                // blips: type, sprite, display, coords (logged when the set changes)
++                struct B { uint32_t type, sprite, display; float x, y, z; };
++                std::vector<B> blips;
++                for (uint32_t type = 1; type <= 10; type++)
++                {
++                    Blip b = Natives::GetFirstBlipInfoId(type);
++                    for (int n = 0; b && Natives::DoesBlipExist(b) && n < 64; n++, b = Natives::GetNextBlipInfoId(type))
++                    {
++                        Vector3 v{};
++                        InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GET_BLIP_COORDS), b, &v);
++                        blips.push_back({ Natives::GetBlipInfoIdType(b), Natives::GetBlipSprite(b), Natives::GetBlipInfoIdDisplay(b), v.fX, v.fY, v.fZ });
++                    }
++                }
++                static size_t lastHash = 0;
++                size_t hash = blips.size();
++                for (auto& b : blips) hash = hash * 31 + b.sprite * 7 + (size_t)b.x;
++                if (hash != lastHash)
++                {
++                    lastHash = hash;
++                    std::string s = std::format("blips ({}):", blips.size());
++                    for (auto& b : blips)
++                        if (b.type == 4 || b.sprite == 8 || b.display == 4 || b.display == 2)
++                            s += std::format(" [type {} sprite {} display {} at {:.0f},{:.0f},{:.0f}]", b.type, b.sprite, b.display, b.x, b.y, b.z);
++                    Log(s);
++                }
++
++                // target: a blip with the waypoint sprite (8), else the first coord blip (type 4)
++                const B* target = nullptr;
++                for (auto& b : blips) if (b.sprite == 8) { target = &b; break; }
++                if (!target) for (auto& b : blips) if (b.type == 4) { target = &b; break; }
++                if (!target || (target->x == 0.0f && target->y == 0.0f))
++                    return;
++
++                float x, y, z, heading, speed;
++                Natives::GetCarCoordinates(car, &x, &y, &z);
++                Natives::GetCarHeading(car, &heading);
++                Natives::GetCarSpeed(car, &speed);
++                int32_t dir = -1;
++                Vector3 out{};
++                InvokeWithVectors(std::to_underlying(Natives::NativeHashes::GENERATE_DIRECTIONS), target->x, target->y, target->z, &dir, &out);
++                int32_t raw[3]; memcpy(raw, &out, sizeof(raw));
++                Log(std::format("car {:.1f},{:.1f} heading {:.0f} speed {:.1f} | target sprite {} at {:.0f},{:.0f} | directions {} (raw {}, {}, {} | {:.2f}, {:.2f}, {:.2f})",
++                    x, y, heading, speed, target->sprite, target->x, target->y, dir, raw[0], raw[1], raw[2], out.fX, out.fY, out.fZ));
++            };
++        };
++    }
++} GpsDebug;
