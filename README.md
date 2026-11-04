@@ -85,8 +85,8 @@ alterações do código do autor (MIT), para quem não usa o Nexus.
 
 ## Contribuição ao FusionFix: setas, GPS e farol
 Feito para este setup e enviado ao FusionFix
-([PR #1652](https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/pull/1652); farol no branch
-[`headlight-cycle`](https://github.com/GianFadiga/GTAIV.EFLC.FusionFix/tree/headlight-cycle)). Para testar já,
+(setas e GPS: [PR #1652](https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/pull/1652); farol:
+[PR #1662](https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/pull/1662)). Para testar já,
 a release **fusionfix-turnindicators-test** traz o FusionFix 5.1.2 com tudo isso (`plugins` e `update`).
 
 | Opção | Onde | O que faz |
