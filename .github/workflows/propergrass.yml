@@ -8,7 +8,7 @@ on:
 permissions:
   contents: write
 env:
-  PG_COMMIT: 64479f4b   # Version 1.2.1 (2026-10-27)
+  PG_COMMIT: 64479f4314550fa5974ac710984b4667082152be   # Version 1.2.1 (2026-10-27)
   TAG: propergrass-1.2.1
 jobs:
   build:
@@ -17,7 +17,10 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-i686
       - run: |
           git clone https://github.com/paulopatine/GTAIV.ProperGrass pg
-          cd pg && git checkout "$PG_COMMIT" && ./build.sh
+          cd pg
+          git checkout "$PG_COMMIT"
+          ./build.sh
+          test -s build/GTAIV.ProperGrass.asi
           mkdir -p ../out/plugins && cp build/GTAIV.ProperGrass.asi release/ProperGrass.ini ../out/plugins/ && cp LICENSE README.md ../out/
           cd ../out && zip -r ../ProperGrass-1.2.1.zip .
       - env:
