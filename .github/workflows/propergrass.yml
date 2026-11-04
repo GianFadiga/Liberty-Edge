@@ -1,0 +1,28 @@
+# Builds paulopatine's Proper Grass (MIT, https://github.com/paulopatine/GTAIV.ProperGrass) from a pinned commit,
+# for the recommended setup. The author ships binaries on Nexus only (mod 1660); this is the same source, unmodified.
+name: Proper Grass (third-party build)
+on:
+  push:
+    paths: [ .github/workflows/propergrass.yml ]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  PG_COMMIT: 64479f4b   # Version 1.2.1 (2026-10-27)
+  TAG: propergrass-1.2.1
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-i686
+      - run: |
+          git clone https://github.com/paulopatine/GTAIV.ProperGrass pg
+          cd pg && git checkout "$PG_COMMIT" && ./build.sh
+          mkdir -p ../out/plugins && cp build/GTAIV.ProperGrass.asi release/ProperGrass.ini ../out/plugins/ && cp LICENSE README.md ../out/
+          cd ../out && zip -r ../ProperGrass-1.2.1.zip .
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "$TAG" -R "$GITHUB_REPOSITORY" -y --cleanup-tag || true
+          gh release create "$TAG" ProperGrass-1.2.1.zip -R "$GITHUB_REPOSITORY" --title "Proper Grass 1.2.1 (third-party build)" \
+            --notes "Unmodified build of paulopatine/GTAIV.ProperGrass at ${PG_COMMIT} (MIT). Official page: https://www.nexusmods.com/gta4/mods/1660" --prerelease
