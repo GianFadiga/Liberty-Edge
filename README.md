@@ -19,6 +19,9 @@ para a tela, o que diminui bastante o serrilhado.
   reagindo depois do alt-tab. O mod faz o jogo ignorar teclado e mouse fora de primeiro plano (`KeyboardFix`).
 - **Lista de mods instalados** dentro do jogo: aperte **F11** (`ModListKey`). Mostra os `.asi` (com versão),
   as pastas de `update` e as DLLs ao lado do `GTAIV.exe`.
+- Só age sobre o dispositivo Direct3D e a janela do próprio jogo. Overlays e ferramentas que criam um
+  dispositivo próprio dentro do jogo são ignorados (antes da 1.8 isso prendia o mouse a parte da tela e
+  crashava na troca de resolução).
 - É um `.asi` independente: não substitui nem depende de uma versão específica do FusionFix.
 
 ## Instalação
@@ -28,8 +31,10 @@ para a tela, o que diminui bastante o serrilhado.
 3. No jogo (aba Jogo do FusionFix): **Janela = Não** e **Janela sem borda = Sim**. O mod transforma a tela cheia
    exclusiva em janela sem borda do tamanho do monitor (`ForceWindowed`), o que evita travar ao trocar de
    resolução e deixa o alt-tab limpo.
-4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. Na Arc B580, 3840×2160 roda estável
-   e é o mais nítido; 2880×1620 é a opção mais leve.
+4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. **2× (3840×2160 num monitor 1080p) é
+   a recomendada**: é o único fator em que cada 4 pixels viram 1, então fica nítido. 1,5× (2880×1620) e outras
+   escalas não inteiras ficam mais moles que o próprio 1080p. 3× usa muita memória num jogo de 32 bits e pode
+   crashar; deixe-a de fora com `Scales = 2` se preferir.
 
 Para desinstalar, apague `plugins\LibertyEdge.ResolutionUnlock.asi` e volte o Modo de vídeo para a
 resolução do monitor.
@@ -62,14 +67,44 @@ serviu de ponto de partida para o projeto. Sobre ela, o setup ficou assim:
 | [Various Fixes](https://www.nexusmods.com/gta4/mods/824) | correções de modelos e texturas do jogo | `update\Various Fixes` |
 | [Higher Resolution Vehicle Pack](https://www.nexusmods.com/gta4/mods/282) | texturas de veículos em alta resolução | `update\Ash_HiRes_VehiclesPack` |
 | [Higher Resolution Miscellaneous Pack](https://www.nexusmods.com/gta4/mods/357) | texturas diversas em alta resolução | `update\Ash_HiRes_Misc` |
-| [Grass and Procedural Props Fix](https://www.nexusmods.com/gta4/mods/1230) (iammrmikeman) | grama, vegetação e objetos procedurais não somem em manchas | `plugins` |
+| [Proper Grass](https://www.nexusmods.com/gta4/mods/1660) ([GitHub](https://github.com/paulopatine/GTAIV.ProperGrass), paulopatine) | grama desenhada por instancing: não some, não pisca, cobre áreas que o jogo deixava vazias, custa pouco | `plugins` |
+| **FusionFix com setas, GPS e farol** (contribuição deste projeto, ver abaixo) | modos de seta, setas pelo GPS, ciclo do farol | `plugins`, `update` |
 | **Liberty Edge Resolution Unlock** (este) | supersampling para placas sem DSR/VSR, teclado, lista de mods | `plugins` |
 
-Testado em: GTA IV CE 1.2.0.59 (Steam), Intel Arc B580, monitor 1920×1080 @165 Hz, API gráfica Vulkan,
-jogando em **3840×2160 reduzido para 1080p** com desempenho estável.
+Testado em: GTA IV CE 1.2.0.59 (Steam), Intel Arc B580, Ryzen 7 8700F, monitor 1920×1080 @165 Hz, API gráfica
+Vulkan, jogando em **3840×2160 reduzido para 1080p** a 60 FPS estáveis.
 
-Sobre o Props Fix: o autor recomenda Distância de detalhe = 100. Se aparecer objeto piscando, sumindo ou travamento,
-volte o `.ini` dele para os valores padrão e veja o `GTAIV.EFLC.ProceduralFixes.log`.
+Configurações usadas: Distância de visão 35, Distância de detalhe 35, Densidade de veículos 50, limitador em 60.
+Neste PC o jogo fica preso ao processador (5 a 7 mil chamadas de desenho por quadro): o FPS é o mesmo de 800×600 a
+3840×2160, então o 4K sai de graça e os sliders de distância são o que realmente pesa.
+
+O **Grass and Procedural Props Fix** (Nexus 1230) foi usado antes e saiu: o guia da Gillian o removeu por causar
+crashes, e com limites altos ele pesava no processador e foi o principal suspeito de um travamento ao carregar missão. O Proper Grass
+faz o mesmo papel; não use os dois juntos. A release `propergrass-1.2.1` deste repositório é uma compilação sem
+alterações do código do autor (MIT), para quem não usa o Nexus.
+
+## Contribuição ao FusionFix: setas, GPS e farol
+Feito para este setup e enviado ao FusionFix
+([PR #1652](https://github.com/ThirteenAG/GTAIV.EFLC.FusionFix/pull/1652); farol no branch
+[`headlight-cycle`](https://github.com/GianFadiga/GTAIV.EFLC.FusionFix/tree/headlight-cycle)). Para testar já,
+a release **fusionfix-turnindicators-test** traz o FusionFix 5.1.2 com tudo isso (`plugins` e `update`).
+
+| Opção | Onde | O que faz |
+|---|---|---|
+| Turn Indicators | menu Controles | Off / Automatic / On (manual) / Automatic + manual; muda na hora |
+| Auto Indicators | menu Controles | o que as setas automáticas seguem: Volante + GPS / Volante / GPS |
+| `ManualTurnIndicators` | `.ini` `[TURNINDICATORS]` | legado: faz Automatic agir como On (manual) |
+| `LeftIndicatorKey` / `RightIndicatorKey` | `.ini` `[TURNINDICATORS]` | teclas das setas manuais (`[` e `]`) |
+| `CycleHeadlights` | `.ini` `[HEADLIGHTS]` | o comando de farol do jogo (H ou controle) passa por Automático → Alto → Baixo → Desligado |
+| `ShowNotice` | `.ini` `[HEADLIGHTS]` | mostra o modo do farol na tela |
+
+- **Setas manuais no controle:** toque em LB/RB liga a seta; os dois juntos, pisca-alerta. Com setas manuais, o
+  jogo só recebe LB/RB (atirar, freio de mão) depois de 300 ms segurando, então o toque não atira nem freia.
+- **GPS:** com waypoint ou rota de missão, a seta acende pouco antes de cada curva anunciada pela voz do GPS e
+  apaga depois da curva. Lê a instrução com `GENERATE_DIRECTIONS` (1 direita, 2 esquerda) e o destino na lista de
+  blips do radar (waypoint ou o blip com a flag de rota).
+- **Farol:** o ciclo acompanha o próprio comando de farol do jogo, venha ele do teclado ou do controle; nenhuma
+  tecla é lida ou substituída.
 
 Não recomendados neste setup: RTX Remix (feito para NVIDIA), ENB/iCEnhancer (conflitam com Vulkan/FusionFix).
 

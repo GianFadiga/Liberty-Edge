@@ -1,8 +1,27 @@
 diff --git a/settings/GTAIV.EFLC.FusionFix.de.json b/settings/GTAIV.EFLC.FusionFix.de.json
-index 008bcca..3901f49 100644
+index 008bcca..8b57e7f 100644
 --- a/settings/GTAIV.EFLC.FusionFix.de.json
 +++ b/settings/GTAIV.EFLC.FusionFix.de.json
-@@ -227,7 +227,7 @@
+@@ -5,6 +5,7 @@
+   "Antialiasing": "Kantenglättung",
+   "AO": "Ambient Occlusion",
+   "Auto Exposure": "Konsolen-Belichtungsautomatik",
++  "Auto Indicators": "Auto-Blinker",
+   "Bloom": "Bloom-Effekt",
+   "BudgetedIV.ExtendedLimits": "Erweiterte Limits",
+   "BudgetedIV.ExtendedLimits.description": "Erhöht Limits wie Modellinfos, Handling, Carcols und einige Poolgrößen.",
+@@ -63,6 +64,10 @@
+   "Extended Sniper": "Erweiterte Sniper-Steuerung",
+   "ExtraNightShad": "Zusätzliche Nachtschatten",
+   "FE_STEAMPAD": "Steam Controller",
++  "MISC.AutoTurnIndicators.description": "Wonach die automatischen Blinker gehen: Lenkung und GPS-Route (Wegpunkt auf der Karte oder Missionsziel), nur die Lenkung oder nur die GPS-Route.",
++  "autoturnindicators.gps": "GPS",
++  "autoturnindicators.steering": "Lenkung",
++  "autoturnindicators.steeringgps": "Lenkung + GPS",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Helligkeit Spiel/UI",
+   "ff.peak": "Spitzenhelligkeit",
+@@ -227,7 +232,7 @@
    "MISC.TransparentMapMenu.description": "Zeigt das Spiel hinter der Karte im Pausenmenü.",
    "MISC.TreeAlpha.description": "Wie die Blätter von Bäumen ausgeschnitten werden.",
    "MISC.TreeLighting.description": "Wie Bäume beleuchtet werden.",
@@ -11,12 +30,7 @@ index 008bcca..3901f49 100644
    "MISC.UnclampLighting.description": "Sonnenlicht reicht weiter.",
    "MISC.ZoomedMovement.description": "Erlaubt Bewegung beim Zielen mit einer Zoom-Waffe.",
    "MO_ALT": "Alternativ",
-@@ -333,10 +333,12 @@
-   "Tree Alpha": "Baumtransparenz",
-   "TreeFX": "Baumbeleuchtung",
-   "Turn Indicators": "Blinker",
-+  "TURNINDICATORS.GpsTurnIndicators": "GPS-Blinker",
-+  "TURNINDICATORS.GpsTurnIndicators.description": "Mit einer GPS-Route (Wegpunkt auf der Karte oder Missionsziel) blinken die automatischen Blinker auch für die nächste Abbiegung der Route, wie die GPS-Stimme sie ansagt.",
+@@ -336,7 +341,7 @@
    "TURNINDICATORS.LeftIndicatorKey": "Taste für linken Blinker",
    "TURNINDICATORS.LeftIndicatorKey.description": "Die Taste für den linken Blinker, ein Virtual-Key-Code (0xDB ist [).",
    "TURNINDICATORS.ManualTurnIndicators": "Manuelle Blinker",
@@ -25,7 +39,7 @@ index 008bcca..3901f49 100644
    "TURNINDICATORS.RightIndicatorKey": "Taste für rechten Blinker",
    "TURNINDICATORS.RightIndicatorKey.description": "Die Taste für den rechten Blinker, ein Virtual-Key-Code (0xDD ist ]).",
    "UnclampLighting": "Erweiterte Sonnenlicht-Reichweite",
-@@ -384,5 +386,8 @@
+@@ -384,5 +389,8 @@
    "window.windowed": "Fenster",
    "window.borderless": "Rahmenlos",
    "MAIN.WindowMode.description": "Vollbild, ein Fenster mit Rahmen oder ein rahmenloses Fenster, das den Bildschirm füllt. Alt+Enter wechselt zwischen Vollbild und dem letzten Fenstermodus.",
@@ -36,10 +50,29 @@ index 008bcca..3901f49 100644
 +  "turnindicators.manual": "An (manuell)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.en.json b/settings/GTAIV.EFLC.FusionFix.en.json
-index fecc2b9..5b7eea7 100644
+index fecc2b9..d7fc9c2 100644
 --- a/settings/GTAIV.EFLC.FusionFix.en.json
 +++ b/settings/GTAIV.EFLC.FusionFix.en.json
-@@ -227,7 +227,7 @@
+@@ -5,6 +5,7 @@
+   "Antialiasing": "Anti-aliasing",
+   "AO": "Ambient Occlusion",
+   "Auto Exposure": "Console Auto Exposure",
++  "Auto Indicators": "Auto Indicators",
+   "Bloom": "Bloom",
+   "BudgetedIV.ExtendedLimits": "Extended Limits",
+   "BudgetedIV.ExtendedLimits.description": "Raises limits like model info, handling, carcols and some pool sizes.",
+@@ -63,6 +64,10 @@
+   "Extended Sniper": "Extended Sniper Controls",
+   "ExtraNightShad": "Extra Night Shadows",
+   "FE_STEAMPAD": "Steam Controller",
++  "MISC.AutoTurnIndicators.description": "What the automatic turn indicators follow: the steering and the GPS route (a map waypoint or a mission destination), only the steering, or only the GPS route.",
++  "autoturnindicators.gps": "GPS",
++  "autoturnindicators.steering": "Steering",
++  "autoturnindicators.steeringgps": "Steering + GPS",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Game/UI Brightness",
+   "ff.peak": "Peak Brightness",
+@@ -227,7 +232,7 @@
    "MISC.TransparentMapMenu.description": "Shows the game behind the map of the pause menu.",
    "MISC.TreeAlpha.description": "How the leaves of trees are cut out.",
    "MISC.TreeLighting.description": "How trees are lit.",
@@ -48,12 +81,7 @@ index fecc2b9..5b7eea7 100644
    "MISC.UnclampLighting.description": "Sunlight reaches further.",
    "MISC.ZoomedMovement.description": "Allows moving while aiming with a zoomed weapon.",
    "MO_ALT": "Alternative",
-@@ -333,10 +333,12 @@
-   "Tree Alpha": "Tree Alpha",
-   "TreeFX": "Tree Lighting",
-   "Turn Indicators": "Turn Indicators",
-+  "TURNINDICATORS.GpsTurnIndicators": "GPS Turn Indicators",
-+  "TURNINDICATORS.GpsTurnIndicators.description": "With a GPS route (a map waypoint or a mission destination), the automatic turn indicators also signal the route's next turn, as the GPS voice announces it.",
+@@ -336,7 +341,7 @@
    "TURNINDICATORS.LeftIndicatorKey": "Left Indicator Key",
    "TURNINDICATORS.LeftIndicatorKey.description": "The key of the left turn indicator, a virtual-key code (0xDB is [).",
    "TURNINDICATORS.ManualTurnIndicators": "Manual Turn Indicators",
@@ -62,7 +90,7 @@ index fecc2b9..5b7eea7 100644
    "TURNINDICATORS.RightIndicatorKey": "Right Indicator Key",
    "TURNINDICATORS.RightIndicatorKey.description": "The key of the right turn indicator, a virtual-key code (0xDD is ]).",
    "UnclampLighting": "Extended Sunlight Reach",
-@@ -384,5 +386,8 @@
+@@ -384,5 +389,8 @@
    "window.windowed": "Windowed",
    "window.borderless": "Borderless",
    "MAIN.WindowMode.description": "Fullscreen, a window with borders, or a borderless window that covers the screen. Alt+Enter switches between fullscreen and the last window mode.",
@@ -73,10 +101,29 @@ index fecc2b9..5b7eea7 100644
 +  "turnindicators.manual": "On (manual)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.es.json b/settings/GTAIV.EFLC.FusionFix.es.json
-index 355adeb..de393b0 100644
+index 355adeb..82e053e 100644
 --- a/settings/GTAIV.EFLC.FusionFix.es.json
 +++ b/settings/GTAIV.EFLC.FusionFix.es.json
-@@ -227,7 +227,7 @@
+@@ -5,6 +5,7 @@
+   "Antialiasing": "Suavizado de líneas",
+   "AO": "Oclusión ambiental",
+   "Auto Exposure": "Exposición automática de consola",
++  "Auto Indicators": "Intermitentes auto",
+   "Bloom": "Resplandor",
+   "BudgetedIV.ExtendedLimits": "Límites ampliados",
+   "BudgetedIV.ExtendedLimits.description": "Aumenta límites como la información de modelos, el manejo, carcols y el tamaño de algunos grupos de memoria.",
+@@ -63,6 +64,10 @@
+   "Extended Sniper": "Controles extendidos del rifle de francotirador",
+   "ExtraNightShad": "Sombras nocturnas adicionales",
+   "FE_STEAMPAD": "Steam Controller",
++  "MISC.AutoTurnIndicators.description": "Qué siguen los intermitentes automáticos: la dirección y la ruta del GPS (un punto en el mapa o el destino de una misión), solo la dirección o solo la ruta del GPS.",
++  "autoturnindicators.gps": "GPS",
++  "autoturnindicators.steering": "Dirección",
++  "autoturnindicators.steeringgps": "Dirección + GPS",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Brillo juego/IU",
+   "ff.peak": "Brillo máximo",
+@@ -227,7 +232,7 @@
    "MISC.TransparentMapMenu.description": "Muestra el juego detrás del mapa del menú de pausa.",
    "MISC.TreeAlpha.description": "Cómo se recortan las hojas de los árboles.",
    "MISC.TreeLighting.description": "Cómo se iluminan los árboles.",
@@ -85,12 +132,7 @@ index 355adeb..de393b0 100644
    "MISC.UnclampLighting.description": "La luz solar llega más lejos.",
    "MISC.ZoomedMovement.description": "Permite moverse al apuntar con un arma con zoom.",
    "MO_ALT": "Alternativo",
-@@ -333,10 +333,12 @@
-   "Tree Alpha": "Transparencia de árboles",
-   "TreeFX": "Iluminación de árboles",
-   "Turn Indicators": "Indicadores de giro",
-+  "TURNINDICATORS.GpsTurnIndicators": "Intermitentes por GPS",
-+  "TURNINDICATORS.GpsTurnIndicators.description": "Con una ruta de GPS (un punto de ruta en el mapa o el destino de una misión), los intermitentes automáticos también señalan el próximo giro de la ruta, como lo anuncia la voz del GPS.",
+@@ -336,7 +341,7 @@
    "TURNINDICATORS.LeftIndicatorKey": "Tecla del intermitente izquierdo",
    "TURNINDICATORS.LeftIndicatorKey.description": "La tecla del intermitente izquierdo, un código de tecla virtual (0xDB es [).",
    "TURNINDICATORS.ManualTurnIndicators": "Intermitentes manuales",
@@ -99,7 +141,7 @@ index 355adeb..de393b0 100644
    "TURNINDICATORS.RightIndicatorKey": "Tecla del intermitente derecho",
    "TURNINDICATORS.RightIndicatorKey.description": "La tecla del intermitente derecho, un código de tecla virtual (0xDD es ]).",
    "UnclampLighting": "Alcance ampliado de la luz solar",
-@@ -384,5 +386,8 @@
+@@ -384,5 +389,8 @@
    "window.windowed": "Ventana",
    "window.borderless": "Sin bordes",
    "MAIN.WindowMode.description": "Pantalla completa, una ventana con bordes o una ventana sin bordes que cubre la pantalla. Alt+Intro cambia entre pantalla completa y el último modo de ventana.",
@@ -110,10 +152,29 @@ index 355adeb..de393b0 100644
 +  "turnindicators.manual": "Activados (manuales)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.fr.json b/settings/GTAIV.EFLC.FusionFix.fr.json
-index 3fd8748..5452b84 100644
+index 3fd8748..f01ebea 100644
 --- a/settings/GTAIV.EFLC.FusionFix.fr.json
 +++ b/settings/GTAIV.EFLC.FusionFix.fr.json
-@@ -227,7 +227,7 @@
+@@ -5,6 +5,7 @@
+   "Antialiasing": "Anticrénelage",
+   "AO": "Occlusion ambiante",
+   "Auto Exposure": "Exposition automatique des consoles",
++  "Auto Indicators": "Clignotants auto",
+   "Bloom": "Effets de bloom",
+   "BudgetedIV.ExtendedLimits": "Limites étendues",
+   "BudgetedIV.ExtendedLimits.description": "Augmente des limites comme les infos de modèles, la maniabilité, les carcols et la taille de certains pools.",
+@@ -63,6 +64,10 @@
+   "Extended Sniper": "Commandes étendues du fusil de sniper",
+   "ExtraNightShad": "Ombres nocturnes supplémentaires",
+   "FE_STEAMPAD": "Steam Controller",
++  "MISC.AutoTurnIndicators.description": "Ce que suivent les clignotants automatiques : la direction et l'itinéraire GPS (un point sur la carte ou la destination d'une mission), seulement la direction, ou seulement l'itinéraire GPS.",
++  "autoturnindicators.gps": "GPS",
++  "autoturnindicators.steering": "Direction",
++  "autoturnindicators.steeringgps": "Direction + GPS",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Luminosité jeu/interface",
+   "ff.peak": "Luminosité maximale",
+@@ -227,7 +232,7 @@
    "MISC.TransparentMapMenu.description": "Affiche le jeu derrière la carte du menu pause.",
    "MISC.TreeAlpha.description": "Comment les feuilles des arbres sont découpées.",
    "MISC.TreeLighting.description": "Comment les arbres sont éclairés.",
@@ -122,12 +183,7 @@ index 3fd8748..5452b84 100644
    "MISC.UnclampLighting.description": "La lumière du soleil porte plus loin.",
    "MISC.ZoomedMovement.description": "Permet de se déplacer en visant avec une arme à zoom.",
    "MO_ALT": "Alternatif",
-@@ -333,10 +333,12 @@
-   "Tree Alpha": "Alpha des arbres",
-   "TreeFX": "Éclairage des arbres",
-   "Turn Indicators": "Clignotants",
-+  "TURNINDICATORS.GpsTurnIndicators": "Clignotants GPS",
-+  "TURNINDICATORS.GpsTurnIndicators.description": "Avec un itinéraire GPS (un point de repère sur la carte ou la destination d'une mission), les clignotants automatiques signalent aussi le prochain virage de l'itinéraire, comme l'annonce la voix du GPS.",
+@@ -336,7 +341,7 @@
    "TURNINDICATORS.LeftIndicatorKey": "Touche du clignotant gauche",
    "TURNINDICATORS.LeftIndicatorKey.description": "La touche du clignotant gauche, un code de touche virtuelle (0xDB est [).",
    "TURNINDICATORS.ManualTurnIndicators": "Clignotants manuels",
@@ -136,7 +192,7 @@ index 3fd8748..5452b84 100644
    "TURNINDICATORS.RightIndicatorKey": "Touche du clignotant droit",
    "TURNINDICATORS.RightIndicatorKey.description": "La touche du clignotant droit, un code de touche virtuelle (0xDD est ]).",
    "UnclampLighting": "Portée étendue de la lumière du soleil",
-@@ -384,5 +386,8 @@
+@@ -384,5 +389,8 @@
    "window.windowed": "Fenêtre",
    "window.borderless": "Sans bordures",
    "MAIN.WindowMode.description": "Plein écran, une fenêtre avec bordures ou une fenêtre sans bordures qui couvre l'écran. Alt+Entrée bascule entre le plein écran et le dernier mode fenêtré.",
@@ -147,10 +203,29 @@ index 3fd8748..5452b84 100644
 +  "turnindicators.manual": "Activés (manuels)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.it.json b/settings/GTAIV.EFLC.FusionFix.it.json
-index fec01b5..fafa08d 100644
+index fec01b5..9f9e56a 100644
 --- a/settings/GTAIV.EFLC.FusionFix.it.json
 +++ b/settings/GTAIV.EFLC.FusionFix.it.json
-@@ -227,7 +227,7 @@
+@@ -5,6 +5,7 @@
+   "Antialiasing": "Antialiasing",
+   "AO": "Occlusione ambientale",
+   "Auto Exposure": "Esposizione automatica delle console",
++  "Auto Indicators": "Indicatori auto",
+   "Bloom": "Bloom",
+   "BudgetedIV.ExtendedLimits": "Limiti estesi",
+   "BudgetedIV.ExtendedLimits.description": "Aumenta limiti come model info, handling, carcols e le dimensioni di alcuni pool.",
+@@ -63,6 +64,10 @@
+   "Extended Sniper": "Controlli estesi del fucile di precisione",
+   "ExtraNightShad": "Ombre notturne extra",
+   "FE_STEAMPAD": "Steam Controller",
++  "MISC.AutoTurnIndicators.description": "Cosa seguono gli indicatori di direzione automatici: lo sterzo e il percorso GPS (un punto sulla mappa o la destinazione di una missione), solo lo sterzo o solo il percorso GPS.",
++  "autoturnindicators.gps": "GPS",
++  "autoturnindicators.steering": "Sterzo",
++  "autoturnindicators.steeringgps": "Sterzo + GPS",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Luminosità gioco/UI",
+   "ff.peak": "Luminosità di picco",
+@@ -227,7 +232,7 @@
    "MISC.TransparentMapMenu.description": "Mostra il gioco dietro la mappa del menu di pausa.",
    "MISC.TreeAlpha.description": "Come vengono ritagliate le foglie degli alberi.",
    "MISC.TreeLighting.description": "Come vengono illuminati gli alberi.",
@@ -159,12 +234,7 @@ index fec01b5..fafa08d 100644
    "MISC.UnclampLighting.description": "La luce solare arriva più lontano.",
    "MISC.ZoomedMovement.description": "Permette di muoversi mentre si mira con un'arma con zoom.",
    "MO_ALT": "Alternativo",
-@@ -333,10 +333,12 @@
-   "Tree Alpha": "Trasparenza degli alberi",
-   "TreeFX": "Illuminazione degli alberi",
-   "Turn Indicators": "Indicatori di direzione",
-+  "TURNINDICATORS.GpsTurnIndicators": "Indicatori di direzione GPS",
-+  "TURNINDICATORS.GpsTurnIndicators.description": "Con un percorso GPS (un punto sulla mappa o la destinazione di una missione), gli indicatori di direzione automatici segnalano anche la prossima svolta del percorso, come la annuncia la voce del GPS.",
+@@ -336,7 +341,7 @@
    "TURNINDICATORS.LeftIndicatorKey": "Tasto indicatore sinistro",
    "TURNINDICATORS.LeftIndicatorKey.description": "Il tasto dell'indicatore di direzione sinistro, un codice virtual-key (0xDB è [).",
    "TURNINDICATORS.ManualTurnIndicators": "Indicatori di direzione manuali",
@@ -173,7 +243,7 @@ index fec01b5..fafa08d 100644
    "TURNINDICATORS.RightIndicatorKey": "Tasto indicatore destro",
    "TURNINDICATORS.RightIndicatorKey.description": "Il tasto dell'indicatore di direzione destro, un codice virtual-key (0xDD è ]).",
    "UnclampLighting": "Estensione della portata della luce solare",
-@@ -384,5 +386,8 @@
+@@ -384,5 +389,8 @@
    "window.windowed": "In finestra",
    "window.borderless": "Senza bordi",
    "MAIN.WindowMode.description": "Schermo intero, una finestra con bordi o una finestra senza bordi che copre lo schermo. Alt+Invio passa dallo schermo intero all'ultima modalità finestra.",
@@ -184,10 +254,29 @@ index fec01b5..fafa08d 100644
 +  "turnindicators.manual": "Attivi (manuali)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.ja.json b/settings/GTAIV.EFLC.FusionFix.ja.json
-index 6a25413..c0891bc 100644
+index 6a25413..8d2f01c 100644
 --- a/settings/GTAIV.EFLC.FusionFix.ja.json
 +++ b/settings/GTAIV.EFLC.FusionFix.ja.json
-@@ -227,7 +227,7 @@
+@@ -5,6 +5,7 @@
+   "Antialiasing": "アンチエイリアシング",
+   "AO": "アンビエントオクルージョン",
+   "Auto Exposure": "コンソール風の自動露出",
++  "Auto Indicators": "自動ウィンカー",
+   "Bloom": "ブルーム効果",
+   "BudgetedIV.ExtendedLimits": "上限の拡張",
+   "BudgetedIV.ExtendedLimits.description": "モデル情報、ハンドリング、carcols、一部のプールサイズなどの上限を引き上げます。",
+@@ -63,6 +64,10 @@
+   "Extended Sniper": "スナイパーライフルの追加操作",
+   "ExtraNightShad": "夜間時の追加シャドウ",
+   "FE_STEAMPAD": "Steam Controller",
++  "MISC.AutoTurnIndicators.description": "自動ウィンカーが反応するもの：ハンドルとGPSルート（マップのウェイポイントまたはミッションの目的地）、ハンドルのみ、またはGPSルートのみ。",
++  "autoturnindicators.gps": "GPS",
++  "autoturnindicators.steering": "ハンドル",
++  "autoturnindicators.steeringgps": "ハンドル＋GPS",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "ゲーム/UIの明るさ",
+   "ff.peak": "ピーク輝度",
+@@ -227,7 +232,7 @@
    "MISC.TransparentMapMenu.description": "ポーズメニューのマップの背後にゲーム画面を表示します。",
    "MISC.TreeAlpha.description": "木の葉の切り抜き方です。",
    "MISC.TreeLighting.description": "木の照らされ方です。",
@@ -196,12 +285,7 @@ index 6a25413..c0891bc 100644
    "MISC.UnclampLighting.description": "日光がより遠くまで届きます。",
    "MISC.ZoomedMovement.description": "ズーム可能な武器で狙っている間も移動できます。",
    "MO_ALT": "代替案",
-@@ -333,10 +333,12 @@
-   "Tree Alpha": "木の透過",
-   "TreeFX": "木のライティング",
-   "Turn Indicators": "ウィンカー",
-+  "TURNINDICATORS.GpsTurnIndicators": "GPSウィンカー",
-+  "TURNINDICATORS.GpsTurnIndicators.description": "GPSルート（マップのウェイポイントまたはミッションの目的地）があるとき、自動ウィンカーはGPS音声の案内どおりに、ルートの次の曲がり角も合図します。",
+@@ -336,7 +341,7 @@
    "TURNINDICATORS.LeftIndicatorKey": "左ウィンカーのキー",
    "TURNINDICATORS.LeftIndicatorKey.description": "左ウィンカーのキーです。仮想キーコードで指定します（0xDBは[）。",
    "TURNINDICATORS.ManualTurnIndicators": "手動ウィンカー",
@@ -210,7 +294,7 @@ index 6a25413..c0891bc 100644
    "TURNINDICATORS.RightIndicatorKey": "右ウィンカーのキー",
    "TURNINDICATORS.RightIndicatorKey.description": "右ウィンカーのキーです。仮想キーコードで指定します（0xDDは]）。",
    "UnclampLighting": "日照範囲の拡大",
-@@ -384,5 +386,8 @@
+@@ -384,5 +389,8 @@
    "window.windowed": "ウィンドウ",
    "window.borderless": "フチなし",
    "MAIN.WindowMode.description": "フルスクリーン、枠付きウィンドウ、または画面を覆うフチなしウィンドウ。Alt+Enterでフルスクリーンと前回のウィンドウモードを切り替えます。",
@@ -221,10 +305,10 @@ index 6a25413..c0891bc 100644
 +  "turnindicators.manual": "オン（手動）"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.json b/settings/GTAIV.EFLC.FusionFix.json
-index 0728c38..a9bed68 100644
+index 0728c38..6c35dd9 100644
 --- a/settings/GTAIV.EFLC.FusionFix.json
 +++ b/settings/GTAIV.EFLC.FusionFix.json
-@@ -254,9 +254,10 @@
+@@ -254,9 +254,16 @@
        "page": "controls", "group": "@group.camera", "control": [ "switch", "cycler" ]
      },
      {
@@ -234,26 +318,39 @@ index 0728c38..a9bed68 100644
        "label": "@Turn Indicators", "description": "@MISC.TurnIndicators.description",
 -      "page": "controls", "group": "@group.gameplay", "control": [ "switch", "cycler" ]
 +      "page": "controls", "group": "@group.gameplay", "control": [ "cycler", "dropdown" ]
++    },
++    {
++      "id": "MISC.AutoTurnIndicators", "type": "choice", "default": 0,
++      "choices": [ { "value": 0, "label": "@autoturnindicators.steeringgps" }, { "value": 1, "label": "@autoturnindicators.steering" }, { "value": 2, "label": "@autoturnindicators.gps" } ],
++      "label": "@Auto Indicators", "description": "@MISC.AutoTurnIndicators.description",
++      "page": "controls", "group": "@group.gameplay", "control": [ "cycler", "dropdown" ]
      },
      {
        "id": "MISC.AlwaysShowBulletTraces", "type": "bool", "default": 0,
-@@ -808,6 +809,11 @@
-       "label": "@TURNINDICATORS.RightIndicatorKey", "description": "@TURNINDICATORS.RightIndicatorKey.description",
-       "page": "advanced", "group": "@group.turn indicators", "visibility": "editor", "apply": "restart"
-     },
-+    {
-+      "id": "TURNINDICATORS.GpsTurnIndicators", "type": "bool", "default": 1,
-+      "label": "@TURNINDICATORS.GpsTurnIndicators", "description": "@TURNINDICATORS.GpsTurnIndicators.description",
-+      "page": "advanced", "group": "@group.turn indicators", "control": [ "switch", "cycler" ], "visibility": "editor", "apply": "restart"
-+    },
-     {
-       "id": "EXPERIMENTAL.DisplayMemoryStats", "type": "bool", "default": 0,
-       "label": "@EXPERIMENTAL.DisplayMemoryStats", "description": "@EXPERIMENTAL.DisplayMemoryStats.description",
 diff --git a/settings/GTAIV.EFLC.FusionFix.ru.json b/settings/GTAIV.EFLC.FusionFix.ru.json
-index 8af2c6d..5f9df58 100644
+index 8af2c6d..e485fdc 100644
 --- a/settings/GTAIV.EFLC.FusionFix.ru.json
 +++ b/settings/GTAIV.EFLC.FusionFix.ru.json
-@@ -227,7 +227,7 @@
+@@ -5,6 +5,7 @@
+   "Antialiasing": "Сглаживание",
+   "AO": "Окклюзия окружающей среды",
+   "Auto Exposure": "Автоэкспозиция консоли",
++  "Auto Indicators": "Автоповоротники",
+   "Bloom": "Свечение",
+   "BudgetedIV.ExtendedLimits": "Расширенные лимиты",
+   "BudgetedIV.ExtendedLimits.description": "Повышает лимиты, например информации о моделях, управляемости, carcols и размеры некоторых пулов.",
+@@ -63,6 +64,10 @@
+   "Extended Sniper": "Расширенное управление снайперской винтовкой",
+   "ExtraNightShad": "Дополнительные ночные тени",
+   "FE_STEAMPAD": "Steam Controller",
++  "MISC.AutoTurnIndicators.description": "На что реагируют автоматические указатели поворота: руль и маршрут GPS (метка на карте или цель миссии), только руль или только маршрут GPS.",
++  "autoturnindicators.gps": "GPS",
++  "autoturnindicators.steering": "Руль",
++  "autoturnindicators.steeringgps": "Руль + GPS",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Яркость игры/интерфейса",
+   "ff.peak": "Пиковая яркость",
+@@ -227,7 +232,7 @@
    "MISC.TransparentMapMenu.description": "Показывает игру за картой в меню паузы.",
    "MISC.TreeAlpha.description": "Как вырезаются листья деревьев.",
    "MISC.TreeLighting.description": "Как освещаются деревья.",
@@ -262,12 +359,7 @@ index 8af2c6d..5f9df58 100644
    "MISC.UnclampLighting.description": "Солнечный свет достает дальше.",
    "MISC.ZoomedMovement.description": "Позволяет двигаться при прицеливании из оружия с приближением.",
    "MO_ALT": "Альтернативный",
-@@ -333,10 +333,12 @@
-   "Tree Alpha": "Прозрачность деревьев",
-   "TreeFX": "Освещение деревьев",
-   "Turn Indicators": "Указатели поворота",
-+  "TURNINDICATORS.GpsTurnIndicators": "Поворотники по GPS",
-+  "TURNINDICATORS.GpsTurnIndicators.description": "При маршруте GPS (метка на карте или цель миссии) автоматические указатели поворота также включаются перед следующим поворотом маршрута, как его объявляет голос GPS.",
+@@ -336,7 +341,7 @@
    "TURNINDICATORS.LeftIndicatorKey": "Клавиша левого поворотника",
    "TURNINDICATORS.LeftIndicatorKey.description": "Клавиша левого указателя поворота, код виртуальной клавиши (0xDB — это [).",
    "TURNINDICATORS.ManualTurnIndicators": "Ручные указатели поворота",
@@ -276,7 +368,7 @@ index 8af2c6d..5f9df58 100644
    "TURNINDICATORS.RightIndicatorKey": "Клавиша правого поворотника",
    "TURNINDICATORS.RightIndicatorKey.description": "Клавиша правого указателя поворота, код виртуальной клавиши (0xDD — это ]).",
    "UnclampLighting": "Увеличенная дистанция солнечного света",
-@@ -384,5 +386,8 @@
+@@ -384,5 +389,8 @@
    "window.windowed": "Окно",
    "window.borderless": "Без рамки",
    "MAIN.WindowMode.description": "Полный экран, окно с рамкой или окно без рамки на весь экран. Alt+Enter переключает между полным экраном и последним оконным режимом.",
@@ -286,8 +378,28 @@ index 8af2c6d..5f9df58 100644
 +  "turnindicators.both": "Автоматически + вручную",
 +  "turnindicators.manual": "Вкл. (вручную)"
  }
+diff --git a/source/settings.ixx b/source/settings.ixx
+index 5646454..a700d6e 100644
+--- a/source/settings.ixx
++++ b/source/settings.ixx
+@@ -2454,6 +2454,7 @@ public:
+             { "PREF_CENTEREDCAMERAFOOT",     "MISC.CenteredFootCam" },
+             { "PREF_CAMERASHAKE",            "MAIN.CameraShake" },
+             { "PREF_TURNINDICATORS",         "MISC.TurnIndicators" },
++            { "PREF_AUTOTURNINDICATORS",     "MISC.AutoTurnIndicators" },
+             { "PREF_EXTRANIGHTSHADOWS",      "SHADOWS.ExtraNightShadows" },
+             { "PREF_GRAPHICSAPI",            "MAIN.GraphicsAPI" },
+             { "PREF_BULLETTRACES",           "MISC.AlwaysShowBulletTraces" },
+@@ -2556,6 +2557,7 @@ public:
+             AddSetting(screen, "MISC.ActionCamera");
+             AddEmptyLine(screen);
+             AddSetting(screen, "MISC.TurnIndicators");
++            AddSetting(screen, "MISC.AutoTurnIndicators");
+             AddSetting(screen, "MISC.AlwaysShowBulletTraces");
+             AddSetting(screen, "MISC.DisableWardrobeTransition", {}, NotTLAD);
+             AddSetting(screen, "MISC.InstantStopTaxi");
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index ab7d6f9..ad980af 100644
+index ab7d6f9..a6a3fdb 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
 @@ -2,6 +2,7 @@ module;
@@ -437,17 +549,16 @@ index ab7d6f9..ad980af 100644
      int pending_blinker = 0;
  };
  
-@@ -142,6 +268,9 @@ public:
+@@ -142,6 +268,8 @@ public:
              static bool bManualTurnIndicators = reader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
              static uint32_t nLeftIndicatorKey = reader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
              static uint32_t nRightIndicatorKey = reader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
-+            static bool bGpsBlinkers = reader.ReadInteger("TURNINDICATORS", "GpsTurnIndicators", 1) != 0;
 +            GpsBlinkers::Init();
 +            BumperGate::Install();
  
              struct VehicleFlags
              {
-@@ -386,6 +515,11 @@ public:
+@@ -386,6 +514,11 @@ public:
              FusionFix::onGameProcessEvent() += [&]()
              {
                  static auto ti = FusionFixSettings.GetRef("PREF_TURNINDICATORS");
@@ -459,7 +570,7 @@ index ab7d6f9..ad980af 100644
                  static Vehicle last_player_car = 0;
                  static bool prev_lb_pressed = false;
                  static bool prev_rb_pressed = false;
-@@ -400,6 +534,8 @@ public:
+@@ -400,6 +533,8 @@ public:
                      Natives::GetCarCharIsUsing(PlayerPed, &PlayerCar);
                  }
  
@@ -468,7 +579,7 @@ index ab7d6f9..ad980af 100644
                  // Check if player has fully entered the vehicle (can actually drive)
                  auto pVehicleStruct = FindPlayerVehicle(0);
                  bool player_fully_in_vehicle = (PlayerCar != 0 && pVehicleStruct != nullptr);
-@@ -446,6 +582,8 @@ public:
+@@ -446,6 +581,8 @@ public:
  
                      bool is_player_vehicle = (veh == PlayerCar);
                      bool player_in_vehicle = is_player_vehicle && player_fully_in_vehicle;
@@ -477,7 +588,7 @@ index ab7d6f9..ad980af 100644
  
                      // Skip processing if feature is disabled and no active blinkers
                      if (!ti->get() && state.current_blinker == 0)
-@@ -458,10 +596,10 @@ public:
+@@ -458,10 +595,10 @@ public:
  
                      if (player_in_vehicle && vehicleStruct)
                      {
@@ -491,7 +602,7 @@ index ab7d6f9..ad980af 100644
                              if (lb_pressed && !prev_lb_pressed)
                              {
                                  lb_press_time = 0.0f;
-@@ -494,6 +632,7 @@ public:
+@@ -494,6 +631,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -499,7 +610,7 @@ index ab7d6f9..ad980af 100644
                                  }
                              }
                              else if (lb_tapped)
-@@ -513,6 +652,7 @@ public:
+@@ -513,6 +651,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -507,7 +618,7 @@ index ab7d6f9..ad980af 100644
                                  }
                                  else
                                  {
-@@ -522,6 +662,7 @@ public:
+@@ -522,6 +661,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 1;
@@ -515,7 +626,7 @@ index ab7d6f9..ad980af 100644
                                      }
                                      else
                                      {
-@@ -532,6 +673,7 @@ public:
+@@ -532,6 +672,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -523,7 +634,7 @@ index ab7d6f9..ad980af 100644
                                      }
                                  }
                              }
-@@ -552,6 +694,7 @@ public:
+@@ -552,6 +693,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -531,7 +642,7 @@ index ab7d6f9..ad980af 100644
                                  }
                                  else
                                  {
-@@ -561,6 +704,7 @@ public:
+@@ -561,6 +703,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 2;
@@ -539,7 +650,7 @@ index ab7d6f9..ad980af 100644
                                      }
                                      else
                                      {
-@@ -571,6 +715,7 @@ public:
+@@ -571,6 +714,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -547,7 +658,7 @@ index ab7d6f9..ad980af 100644
                                      }
                                  }
                              }
-@@ -578,6 +723,9 @@ public:
+@@ -578,16 +722,28 @@ public:
                              prev_rb_pressed = rb_pressed;
                          }
                          else
@@ -557,11 +668,23 @@ index ab7d6f9..ad980af 100644
                          {
                              // Process player vehicle with turn indicators
                              auto m_fSteerAngle = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(vehicleStruct) + SteerAngleOffset);
-@@ -588,6 +736,8 @@ public:
+ 
++                            // What the automatic indicators follow (Auto Indicators): 0 steering + GPS, 1 steering, 2 GPS
++                            static auto autoSource = FusionFixSettings.GetRef("PREF_AUTOTURNINDICATORS");
++                            const int source = autoSource ? autoSource->get() : 0;
++                            const bool bFollowSteering = source != 2;
++                            const bool bFollowGps = source != 1;
++
+                             // Determine current turn direction
+                             int current_turn_direction = 0;
+-                            if (m_fSteerAngle > STEER_THRESHOLD)
++                            if (bFollowSteering && m_fSteerAngle > STEER_THRESHOLD)
                                  current_turn_direction = 1; // Left
-                             else if (m_fSteerAngle < -STEER_THRESHOLD)
+-                            else if (m_fSteerAngle < -STEER_THRESHOLD)
++                            else if (bFollowSteering && m_fSteerAngle < -STEER_THRESHOLD)
                                  current_turn_direction = 2; // Right
-+                            if (current_turn_direction == 0 && bGpsBlinkers)
++                            // Not steering (or steering ignored): follow the GPS route, if there is one
++                            if (current_turn_direction == 0 && bFollowGps)
 +                                current_turn_direction = GpsBlinkers::Direction();
  
                              bool currently_turning = (current_turn_direction != 0);

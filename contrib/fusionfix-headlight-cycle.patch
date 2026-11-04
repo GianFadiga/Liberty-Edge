@@ -1,0 +1,283 @@
+diff --git a/settings/GTAIV.EFLC.FusionFix.de.json b/settings/GTAIV.EFLC.FusionFix.de.json
+index 008bcca..a47c095 100644
+--- a/settings/GTAIV.EFLC.FusionFix.de.json
++++ b/settings/GTAIV.EFLC.FusionFix.de.json
+@@ -63,6 +63,10 @@
+   "Extended Sniper": "Erweiterte Sniper-Steuerung",
+   "ExtraNightShad": "Zusätzliche Nachtschatten",
+   "FE_STEAMPAD": "Steam Controller",
++  "HEADLIGHTS.CycleHeadlights": "Scheinwerfer-Zyklus",
++  "HEADLIGHTS.CycleHeadlights.description": "Die Scheinwerfer-Taste des Spiels (H oder Controller) wechselt zwischen Automatisch, Fernlicht, Abblendlicht und Aus. Automatisch, das normale Verhalten des Spiels, bleibt der Standard.",
++  "HEADLIGHTS.ShowNotice": "Scheinwerfer-Modus anzeigen",
++  "HEADLIGHTS.ShowNotice.description": "Zeigt nach jedem Wechsel den neuen Scheinwerfer-Modus auf dem Bildschirm an.",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Helligkeit Spiel/UI",
+   "ff.peak": "Spitzenhelligkeit",
+@@ -105,6 +109,7 @@
+   "group.frame limit": "Bildratenbegrenzung",
+   "group.gameplay": "Gameplay",
+   "group.hdr": "HDR",
++  "group.headlights": "Scheinwerfer",
+   "group.image": "Bild",
+   "group.interface": "Oberfläche",
+   "group.keyboard": "Tastatur und Maus",
+diff --git a/settings/GTAIV.EFLC.FusionFix.en.json b/settings/GTAIV.EFLC.FusionFix.en.json
+index fecc2b9..6a23f85 100644
+--- a/settings/GTAIV.EFLC.FusionFix.en.json
++++ b/settings/GTAIV.EFLC.FusionFix.en.json
+@@ -63,6 +63,10 @@
+   "Extended Sniper": "Extended Sniper Controls",
+   "ExtraNightShad": "Extra Night Shadows",
+   "FE_STEAMPAD": "Steam Controller",
++  "HEADLIGHTS.CycleHeadlights": "Headlight Cycle",
++  "HEADLIGHTS.CycleHeadlights.description": "The game's headlight control (H, or the controller) cycles Automatic, High beam, Low beam and Off. Automatic, the game's own behaviour, stays the default.",
++  "HEADLIGHTS.ShowNotice": "Show Headlight State",
++  "HEADLIGHTS.ShowNotice.description": "Shows the new headlight state on screen after each change.",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Game/UI Brightness",
+   "ff.peak": "Peak Brightness",
+@@ -105,6 +109,7 @@
+   "group.frame limit": "Frame Limit",
+   "group.gameplay": "Gameplay",
+   "group.hdr": "HDR",
++  "group.headlights": "Headlights",
+   "group.image": "Image",
+   "group.interface": "Interface",
+   "group.keyboard": "Keyboard and Mouse",
+diff --git a/settings/GTAIV.EFLC.FusionFix.es.json b/settings/GTAIV.EFLC.FusionFix.es.json
+index 355adeb..78cbd1d 100644
+--- a/settings/GTAIV.EFLC.FusionFix.es.json
++++ b/settings/GTAIV.EFLC.FusionFix.es.json
+@@ -63,6 +63,10 @@
+   "Extended Sniper": "Controles extendidos del rifle de francotirador",
+   "ExtraNightShad": "Sombras nocturnas adicionales",
+   "FE_STEAMPAD": "Steam Controller",
++  "HEADLIGHTS.CycleHeadlights": "Ciclo de faros",
++  "HEADLIGHTS.CycleHeadlights.description": "El control de faros del juego (H o el mando) alterna entre Automáticos, Luces largas, Luces cortas y Apagados. Automáticos, el comportamiento normal del juego, sigue siendo el predeterminado.",
++  "HEADLIGHTS.ShowNotice": "Mostrar modo de faros",
++  "HEADLIGHTS.ShowNotice.description": "Muestra en pantalla el nuevo modo de los faros tras cada cambio.",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Brillo juego/IU",
+   "ff.peak": "Brillo máximo",
+@@ -105,6 +109,7 @@
+   "group.frame limit": "Límite de fotogramas",
+   "group.gameplay": "Jugabilidad",
+   "group.hdr": "HDR",
++  "group.headlights": "Faros",
+   "group.image": "Imagen",
+   "group.interface": "Interfaz",
+   "group.keyboard": "Teclado y ratón",
+diff --git a/settings/GTAIV.EFLC.FusionFix.fr.json b/settings/GTAIV.EFLC.FusionFix.fr.json
+index 3fd8748..5a60a8e 100644
+--- a/settings/GTAIV.EFLC.FusionFix.fr.json
++++ b/settings/GTAIV.EFLC.FusionFix.fr.json
+@@ -63,6 +63,10 @@
+   "Extended Sniper": "Commandes étendues du fusil de sniper",
+   "ExtraNightShad": "Ombres nocturnes supplémentaires",
+   "FE_STEAMPAD": "Steam Controller",
++  "HEADLIGHTS.CycleHeadlights": "Cycle des phares",
++  "HEADLIGHTS.CycleHeadlights.description": "La commande des phares du jeu (H ou la manette) passe par Automatiques, Pleins phares, Codes et Éteints. Automatiques, le comportement normal du jeu, reste le réglage par défaut.",
++  "HEADLIGHTS.ShowNotice": "Afficher le mode des phares",
++  "HEADLIGHTS.ShowNotice.description": "Affiche à l'écran le nouveau mode des phares après chaque changement.",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Luminosité jeu/interface",
+   "ff.peak": "Luminosité maximale",
+@@ -105,6 +109,7 @@
+   "group.frame limit": "Limite d'images",
+   "group.gameplay": "Gameplay",
+   "group.hdr": "HDR",
++  "group.headlights": "Phares",
+   "group.image": "Image",
+   "group.interface": "Interface",
+   "group.keyboard": "Clavier et souris",
+diff --git a/settings/GTAIV.EFLC.FusionFix.it.json b/settings/GTAIV.EFLC.FusionFix.it.json
+index fec01b5..42fbd6d 100644
+--- a/settings/GTAIV.EFLC.FusionFix.it.json
++++ b/settings/GTAIV.EFLC.FusionFix.it.json
+@@ -63,6 +63,10 @@
+   "Extended Sniper": "Controlli estesi del fucile di precisione",
+   "ExtraNightShad": "Ombre notturne extra",
+   "FE_STEAMPAD": "Steam Controller",
++  "HEADLIGHTS.CycleHeadlights": "Ciclo dei fari",
++  "HEADLIGHTS.CycleHeadlights.description": "Il comando dei fari del gioco (H o il controller) passa tra Automatici, Abbaglianti, Anabbaglianti e Spenti. Automatici, il comportamento normale del gioco, resta l'impostazione predefinita.",
++  "HEADLIGHTS.ShowNotice": "Mostra modalità fari",
++  "HEADLIGHTS.ShowNotice.description": "Mostra sullo schermo la nuova modalità dei fari dopo ogni cambio.",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Luminosità gioco/UI",
+   "ff.peak": "Luminosità di picco",
+@@ -105,6 +109,7 @@
+   "group.frame limit": "Limite frame",
+   "group.gameplay": "Gameplay",
+   "group.hdr": "HDR",
++  "group.headlights": "Fari",
+   "group.image": "Immagine",
+   "group.interface": "Interfaccia",
+   "group.keyboard": "Tastiera e mouse",
+diff --git a/settings/GTAIV.EFLC.FusionFix.ja.json b/settings/GTAIV.EFLC.FusionFix.ja.json
+index 6a25413..c472ef8 100644
+--- a/settings/GTAIV.EFLC.FusionFix.ja.json
++++ b/settings/GTAIV.EFLC.FusionFix.ja.json
+@@ -63,6 +63,10 @@
+   "Extended Sniper": "スナイパーライフルの追加操作",
+   "ExtraNightShad": "夜間時の追加シャドウ",
+   "FE_STEAMPAD": "Steam Controller",
++  "HEADLIGHTS.CycleHeadlights": "ヘッドライト切り替え",
++  "HEADLIGHTS.CycleHeadlights.description": "ゲームのヘッドライト操作（Hキーまたはコントローラー）で、自動・ハイビーム・ロービーム・オフを順に切り替えます。標準はゲーム本来の「自動」のままです。",
++  "HEADLIGHTS.ShowNotice": "ヘッドライト状態を表示",
++  "HEADLIGHTS.ShowNotice.description": "切り替えるたびに、新しいヘッドライトの状態を画面に表示します。",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "ゲーム/UIの明るさ",
+   "ff.peak": "ピーク輝度",
+@@ -105,6 +109,7 @@
+   "group.frame limit": "フレーム制限",
+   "group.gameplay": "ゲームプレイ",
+   "group.hdr": "HDR",
++  "group.headlights": "ヘッドライト",
+   "group.image": "画像",
+   "group.interface": "インターフェース",
+   "group.keyboard": "キーボードとマウス",
+diff --git a/settings/GTAIV.EFLC.FusionFix.json b/settings/GTAIV.EFLC.FusionFix.json
+index 0728c38..b2342ab 100644
+--- a/settings/GTAIV.EFLC.FusionFix.json
++++ b/settings/GTAIV.EFLC.FusionFix.json
+@@ -808,6 +808,16 @@
+       "label": "@TURNINDICATORS.RightIndicatorKey", "description": "@TURNINDICATORS.RightIndicatorKey.description",
+       "page": "advanced", "group": "@group.turn indicators", "visibility": "editor", "apply": "restart"
+     },
++    {
++      "id": "HEADLIGHTS.CycleHeadlights", "type": "bool", "default": 0,
++      "label": "@HEADLIGHTS.CycleHeadlights", "description": "@HEADLIGHTS.CycleHeadlights.description",
++      "page": "advanced", "group": "@group.headlights", "control": [ "switch", "cycler" ], "visibility": "editor", "apply": "restart"
++    },
++    {
++      "id": "HEADLIGHTS.ShowNotice", "type": "bool", "default": 1,
++      "label": "@HEADLIGHTS.ShowNotice", "description": "@HEADLIGHTS.ShowNotice.description",
++      "page": "advanced", "group": "@group.headlights", "control": [ "switch", "cycler" ], "visibility": "editor", "apply": "restart"
++    },
+     {
+       "id": "EXPERIMENTAL.DisplayMemoryStats", "type": "bool", "default": 0,
+       "label": "@EXPERIMENTAL.DisplayMemoryStats", "description": "@EXPERIMENTAL.DisplayMemoryStats.description",
+diff --git a/settings/GTAIV.EFLC.FusionFix.ru.json b/settings/GTAIV.EFLC.FusionFix.ru.json
+index 8af2c6d..d258854 100644
+--- a/settings/GTAIV.EFLC.FusionFix.ru.json
++++ b/settings/GTAIV.EFLC.FusionFix.ru.json
+@@ -63,6 +63,10 @@
+   "Extended Sniper": "Расширенное управление снайперской винтовкой",
+   "ExtraNightShad": "Дополнительные ночные тени",
+   "FE_STEAMPAD": "Steam Controller",
++  "HEADLIGHTS.CycleHeadlights": "Цикл фар",
++  "HEADLIGHTS.CycleHeadlights.description": "Управление фарами в игре (H или геймпад) переключает: авто, дальний свет, ближний свет, выкл. По умолчанию остаётся авто — обычное поведение игры.",
++  "HEADLIGHTS.ShowNotice": "Показывать режим фар",
++  "HEADLIGHTS.ShowNotice.description": "Показывает новый режим фар на экране после каждого переключения.",
+   "ff.hdr": "HDR",
+   "ff.paperwhite": "Яркость игры/интерфейса",
+   "ff.peak": "Пиковая яркость",
+@@ -105,6 +109,7 @@
+   "group.frame limit": "Ограничение кадров",
+   "group.gameplay": "Геймплей",
+   "group.hdr": "HDR",
++  "group.headlights": "Фары",
+   "group.image": "Изображение",
+   "group.interface": "Интерфейс",
+   "group.keyboard": "Клавиатура и мышь",
+diff --git a/source/headlightcycle.ixx b/source/headlightcycle.ixx
+new file mode 100644
+index 0000000..046f651
+--- /dev/null
++++ b/source/headlightcycle.ixx
+@@ -0,0 +1,95 @@
++module;
++
++#include <common.hxx>
++#include <unordered_map>
++
++export module headlightcycle;
++
++import common;
++import comvars;
++import natives;
++import settings;
++
++// Headlight cycle: keeps the game's automatic headlights and lets the game's headlight control cycle
++//   Automatic -> High beam -> Low beam (forced on) -> Off -> Automatic
++// The cycle follows the game's own headlight control, whatever triggers it (the H key, the controller, or a remapped
++// key): the game toggles the high beam on every use of that control, so a change of the high beam that the cycle
++// did not make is one step of the cycle. The game's controls are not read or replaced.
++// FORCE_CAR_LIGHTS forces the headlights on/off but does not touch the high beam. The high beam is a flag in the
++// vehicle (bit 0x02 of the byte at +0xF19 on 1.2.0.59, three bytes after the vehicle flags that the turn indicators
++// use), so the cycle sets that bit itself every frame for the state it is in:
++//   0 Automatic: FORCE_CAR_LIGHTS 0 (game default), high beam off
++//   1 High beam: FORCE_CAR_LIGHTS 0, high beam on
++//   2 Low beam : FORCE_CAR_LIGHTS 2 (on), high beam off
++//   3 Off      : FORCE_CAR_LIGHTS 1 (off), high beam off
++// Other game versions have the vehicle fields 0x50 bytes further, told apart by the same pattern as the turn indicators.
++// The state is kept per vehicle, so getting back into a car resumes its cycle.
++
++class HeadlightCycle
++{
++public:
++    HeadlightCycle()
++    {
++        FusionFix::onInitEventAsync() += []()
++        {
++            SettingsReader reader;
++            static bool bEnabled = reader.ReadInteger("HEADLIGHTS", "CycleHeadlights", 0) != 0;
++            static bool bNotice = reader.ReadInteger("HEADLIGHTS", "ShowNotice", 1) != 0;
++            if (!bEnabled)
++                return;
++
++            static ptrdiff_t highBeamOffset = find_pattern("55 8B EC 83 E4 ? 8B 45 ? 83 EC ? 8B 80").empty() ? 0xF19 + 0x50 : 0xF19;
++
++            FusionFix::onGameProcessEvent() += []()
++            {
++                static std::unordered_map<Vehicle, int32_t> steps;
++                static Vehicle lastCar = 0;
++                static int32_t lastHighBeam = -1; // the high beam as the cycle last set it, -1 = not yet in this car
++
++                Ped player = 0;
++                Natives::GetPlayerChar(Natives::ConvertIntToPlayerIndex(Natives::GetPlayerId()), &player);
++                Vehicle car = 0;
++                if (player && Natives::IsCharInAnyCar(player))
++                    Natives::GetCarCharIsUsing(player, &car);
++                Ped driver = 0;
++                if (car)
++                    Natives::GetDriverOfCar(car, &driver);
++                auto veh = (car && driver == player) ? (uint8_t*)FindPlayerVehicle(0) : nullptr;
++                if (!veh)
++                {
++                    lastCar = 0;
++                    lastHighBeam = -1;
++                    return;
++                }
++                if (car != lastCar)
++                {
++                    lastCar = car;
++                    lastHighBeam = -1;
++                }
++
++                if (steps.size() > 32)
++                    steps.clear();
++                int32_t& step = steps[car];
++                uint8_t& flags = veh[highBeamOffset];
++                int32_t highBeam = (flags & 0x02) ? 1 : 0;
++
++                // The game toggled the high beam: its headlight control was used
++                if (lastHighBeam != -1 && highBeam != lastHighBeam)
++                {
++                    step = (step + 1) % 4;
++                    static const int32_t force[4] = { 0, 0, 2, 1 };
++                    Natives::ForceCarLights(car, force[step]);
++                    if (bNotice)
++                    {
++                        static const char* names[4] = { "Headlights: automatic", "Headlights: high beam", "Headlights: low beam", "Headlights: off" };
++                        Natives::PrintStringWithLiteralStringNow((char*)"STRING", (void*)names[step], 1500, true);
++                    }
++                }
++
++                // The high beam follows the cycle
++                lastHighBeam = (step == 1) ? 1 : 0;
++                flags = lastHighBeam ? (flags | 0x02) : (flags & ~0x02);
++            };
++        };
++    }
++} HeadlightCycle;
