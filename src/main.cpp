@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.7"
+#define LE_VERSION "1.8"
 
 namespace
 {
@@ -107,6 +107,7 @@ namespace
 
     // ---------------------------------------------------------------- shared state
     HWND gWnd = nullptr;          // device window
+    IDirect3DDevice9* gGameDev = nullptr; // the game's device (other programs can create devices in the process)
     UINT gNativeW = 0, gNativeH = 0; // largest real mode of the monitor
     UINT gBackW = 0, gBackH = 0;  // current backbuffer size
     bool InVirtualMode() { return gNativeW && (gBackW > gNativeW || gBackH > gNativeH); }
@@ -259,10 +260,12 @@ namespace
 
     void Subclass()
     {
-        if (!gWnd || gWnd == gSubclassed) return;
+        if (!gWnd || gWnd == gSubclassed || gSubclassed) return; // only the game's window, once
         gWndUnicode = IsWindowUnicode(gWnd) != 0;
+        LONG_PTR cur = gWndUnicode ? GetWindowLongPtrW(gWnd, GWLP_WNDPROC) : GetWindowLongPtrA(gWnd, GWLP_WNDPROC);
+        if (cur == (LONG_PTR)&WndProc) { gSubclassed = gWnd; return; }
         LONG_PTR prev = gWndUnicode ? SetWindowLongPtrW(gWnd, GWLP_WNDPROC, (LONG_PTR)&WndProc) : SetWindowLongPtrA(gWnd, GWLP_WNDPROC, (LONG_PTR)&WndProc);
-        if (prev)
+        if (prev && prev != (LONG_PTR)&WndProc)
         {
             gOrigWndProc = (WNDPROC)prev;
             gSubclassed = gWnd;
@@ -850,7 +853,8 @@ namespace
         IDirect3DDevice9* dev = nullptr;
         if (SUCCEEDED(sc->GetDevice(&dev)) && dev)
         {
-            PerFrame(dev, wnd, "IDirect3DSwapChain9::Present");
+            if (!gGameDev || dev == gGameDev)
+                PerFrame(dev, wnd, "IDirect3DSwapChain9::Present");
             dev->Release();
         }
         gInSCPresent = true;
@@ -861,13 +865,14 @@ namespace
 
     HRESULT WINAPI hkPresent(IDirect3DDevice9* dev, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty)
     {
-        if (!gInSCPresent) PerFrame(dev, wnd, "IDirect3DDevice9::Present");
+        if (!gInSCPresent && (!gGameDev || dev == gGameDev)) PerFrame(dev, wnd, "IDirect3DDevice9::Present");
         return oPresent(dev, src, dst, wnd, dirty);
     }
 
 
     HRESULT WINAPI hkReset(IDirect3DDevice9* dev, D3DPRESENT_PARAMETERS* pp)
     {
+        if (gGameDev && dev != gGameDev) return oReset(dev, pp); // another program's device in the game (an overlay)
         gFilter.ReleaseDefault();
         if (gOverlaySB) { gOverlaySB->Release(); gOverlaySB = nullptr; }
         PrepareParams(pp, "Reset");
@@ -880,12 +885,24 @@ namespace
 
     HRESULT WINAPI hkCreateDevice(IDirect3D9* d3d, UINT adapter, D3DDEVTYPE type, HWND focus, DWORD flags, D3DPRESENT_PARAMETERS* pp, IDirect3DDevice9** out)
     {
+        // Overlays and other tools can create their own device inside the game process, on their own window
+        // (seen: a 0x0 backbuffer on a hidden window). Taking that window for the game's broke the mouse fix,
+        // the window fit and the filter, and subclassing it crashed the next resolution change. Once the game's
+        // device exists, a device on another window is left alone.
+        HWND devWnd = (pp && pp->hDeviceWindow) ? pp->hDeviceWindow : focus;
+        if (gGameDev && gWnd && devWnd != gWnd)
+        {
+            static int n = 0;
+            if (n++ < 4) Log("CreateDevice on another window (%ux%u): not the game's device, left alone", pp ? pp->BackBufferWidth : 0, pp ? pp->BackBufferHeight : 0);
+            return oCreateDevice(d3d, adapter, type, focus, flags, pp, out);
+        }
         if (pp && !pp->hDeviceWindow) gWnd = focus;
         PrepareParams(pp, "CreateDevice");
         if (!gWnd) gWnd = focus;
         HRESULT hr = oCreateDevice(d3d, adapter, type, focus, flags, pp, out);
         if (SUCCEEDED(hr) && out && *out)
         {
+            gGameDev = *out;
             if (auto o = PatchVtbl(*out, 16, (void*)&hkReset)) oReset = (Reset_t)o;
             if (auto o = PatchVtbl(*out, 17, (void*)&hkPresent)) oPresent = (Present_t)o;
             IDirect3DSwapChain9* sc = nullptr;
