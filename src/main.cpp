@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.8"
+#define LE_VERSION "1.9"
 
 namespace
 {
@@ -93,7 +93,7 @@ namespace
             MoveFileExW((gDir + L"LibertyEdge.ResolutionUnlock.log").c_str(), (gDir + L"LibertyEdge.ResolutionUnlock.prev.log").c_str(), MOVEFILE_REPLACE_EXISTING);
         cfg.overlayKey = (int)wcstol(getStr(L"ModListKey", L"0x7A").c_str(), nullptr, 0);
         cfg.sharpen = std::clamp((float)_wtof(getStr(L"Sharpen", L"0.3").c_str()), 0.0f, 1.0f);
-        auto sc = getStr(L"Scales", L"1.5, 2, 3");
+        auto sc = getStr(L"Scales", L"2");
         std::vector<float> scales;
         for (wchar_t* ctx = nullptr, *t = wcstok_s(sc.data(), L" ,\t", &ctx); t; t = wcstok_s(nullptr, L" ,\t", &ctx))
         {

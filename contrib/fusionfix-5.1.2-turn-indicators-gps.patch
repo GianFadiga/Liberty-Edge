@@ -110,10 +110,79 @@ index 1876acf..c01848b 100644
              { 0, "PREF_GRAPHICSAPI",            "MAIN",       "GraphicsAPI",                        "MENU_DISPLAY_GRAPHICS_API",                           0, nullptr, 0, 1 },
              { 0, "PREF_BULLETTRACES",           "MISC",       "AlwaysShowBulletTraces",             "",                           0, nullptr, 0, 1 },
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index 06c273b..256eb57 100644
+index 06c273b..ad11663 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
-@@ -69,6 +69,78 @@ namespace BumperGate
+@@ -20,13 +20,50 @@ constexpr float TAP_THRESHOLD = 300.0f;     // ms threshold for tap detection
+ // Controller bumpers with manual turn indicators: LB/RB also fire/aim and pull the handbrake in vehicles. While the
+ // player drives with manual indicators, the game only gets a bumper once it has been held longer than a tap
+ // (TAP_THRESHOLD), so a tap only works the turn indicator. The raw state is kept for the indicator logic.
++// Optional modifier ([TURNINDICATORS] ControllerModifier): while X is held, the D-pad works the indicators instead of
++// the game (left/right: indicators, down: hazards). X reaches the game only when held longer than a tap and not
++// used for a combination, so holding X alone still works the game's headlight control.
+ namespace BumperGate
+ {
+     constexpr uint16_t LB = 0x0100, RB = 0x0200; // XINPUT_GAMEPAD_LEFT_SHOULDER / RIGHT_SHOULDER
++    constexpr uint16_t DPAD_DOWN = 0x0002, DPAD_LEFT = 0x0004, DPAD_RIGHT = 0x0008, BTN_X = 0x4000;
++    constexpr uint16_t DPAD_MOD = DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT;
++    enum ModEvent : uint32_t { MOD_LEFT = 1, MOD_RIGHT = 2, MOD_HAZARD = 4 };
+     std::atomic<bool> active{ false };
++    std::atomic<bool> modifier{ false };
++    std::atomic<uint32_t> modEvents{ 0 }; // combinations pressed since the game last read them
+     std::atomic<uint16_t> raw{ 0 };
+     SafetyHookInline shXInputGetState{};
+-    DWORD lbStart = 0, rbStart = 0;
++    DWORD lbStart = 0, rbStart = 0, xStart = 0;
++    bool xCombo = false;
++    uint16_t prevDpad = 0;
++
++    void Modifier(uint16_t& buttons, DWORD now)
++    {
++        uint16_t dpad = buttons & DPAD_MOD;
++        uint16_t pressed = dpad & ~prevDpad;
++        prevDpad = dpad;
++        if (!(buttons & BTN_X))
++        {
++            xStart = 0;
++            xCombo = false;
++            return;
++        }
++        if (!xStart)
++            xStart = now ? now : 1;
++        if (pressed)
++        {
++            uint32_t ev = 0;
++            if (pressed & DPAD_LEFT) ev |= MOD_LEFT;
++            if (pressed & DPAD_RIGHT) ev |= MOD_RIGHT;
++            if (pressed & DPAD_DOWN) ev |= MOD_HAZARD;
++            modEvents |= ev;
++            xCombo = true;
++        }
++        buttons &= ~DPAD_MOD;
++        if (xCombo || now - xStart < (DWORD)TAP_THRESHOLD)
++            buttons &= ~BTN_X;
++    }
+ 
+     void Gate(uint16_t& buttons, uint16_t mask, DWORD& start, DWORD now)
+     {
+@@ -53,9 +90,15 @@ namespace BumperGate
+                 DWORD now = GetTickCount();
+                 Gate(buttons, LB, lbStart, now);
+                 Gate(buttons, RB, rbStart, now);
++                if (modifier)
++                    Modifier(buttons, now);
+             }
+             else
+-                lbStart = rbStart = 0;
++            {
++                lbStart = rbStart = xStart = 0;
++                xCombo = false;
++                prevDpad = buttons & DPAD_MOD;
++            }
+         }
+         return res;
+     }
+@@ -69,6 +112,78 @@ namespace BumperGate
      }
  }
  
@@ -192,15 +261,51 @@ index 06c273b..256eb57 100644
  // Struct to hold all vehicle state data
  struct VehicleState
  {
-@@ -196,6 +268,7 @@ public:
+@@ -196,6 +311,8 @@ public:
              static bool bManualTurnIndicators = iniReader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
              static uint32_t nLeftIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
              static uint32_t nRightIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
 +            GpsBlinkers::Init();
++            BumperGate::modifier = iniReader.ReadInteger("TURNINDICATORS", "ControllerModifier", 0) != 0;
              BumperGate::Install();
  
              struct VehicleFlags
-@@ -656,12 +729,21 @@ public:
+@@ -484,6 +601,20 @@ public:
+                         {
+                             last_state->crash_state = VehicleState::CRASHED_AND_EXITED;
+                         }
++                        // The turn indicators go off when the player leaves the vehicle; otherwise a manual indicator
++                        // kept blinking on the parked car forever (#1438). Hazards switched on by hand stay on, as in a real car.
++                        if (last_state && (last_state->current_blinker != 0 || last_state->blinkers_active || last_state->pending_blinker != 0))
++                        {
++                            Natives::SetVehIndicatorlights(last_player_car, false);
++                            last_state->current_blinker = 0;
++                            last_state->blinkers_active = false;
++                            last_state->should_stop_blinking = false;
++                            last_state->blink_state = false;
++                            last_state->blink_timer = 0.0f;
++                            last_state->final_blink_timer = 0.0f;
++                            last_state->pending_blinker = 0;
++                            last_state->manual_active = false;
++                        }
+                     }
+ 
+                     last_player_car = PlayerCar;
+@@ -542,9 +673,10 @@ public:
+                             {
+                                 rb_press_time += 1000.0f * Natives::Timestep();
+                             }
+-                            bool lb_tapped = !lb_pressed && prev_lb_pressed && lb_press_time <= TAP_THRESHOLD;
+-                            bool rb_tapped = !rb_pressed && prev_rb_pressed && rb_press_time <= TAP_THRESHOLD;
+-                            if (lb_tapped && rb_tapped)
++                            const uint32_t mod = BumperGate::modEvents.exchange(0);
++                            bool lb_tapped = (!lb_pressed && prev_lb_pressed && lb_press_time <= TAP_THRESHOLD) || (mod & BumperGate::MOD_LEFT);
++                            bool rb_tapped = (!rb_pressed && prev_rb_pressed && rb_press_time <= TAP_THRESHOLD) || (mod & BumperGate::MOD_RIGHT);
++                            if ((lb_tapped && rb_tapped) || (mod & BumperGate::MOD_HAZARD))
+                             {
+                                 state.manual_hazard = !state.manual_hazard;
+                                 Natives::SetVehHazardlights(veh, state.manual_hazard);
+@@ -656,12 +788,21 @@ public:
                              // Process player vehicle with turn indicators
                              auto m_fSteerAngle = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(vehicleStruct) + SteerAngleOffset);
  
@@ -224,3 +329,14 @@ index 06c273b..256eb57 100644
  
                              bool currently_turning = (current_turn_direction != 0);
                              bool direction_changed = (current_turn_direction != state.last_turn_direction &&
+diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
+--- a/data/plugins/GTAIV.EFLC.FusionFix.ini
++++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
+@@ -103,6 +103,7 @@
+ ManualTurnIndicators = 0                      // legacy: makes "Automatic" behave as "Manual". Use Game > Turn Indicators: On (manual) or Automatic + manual instead (tap LB/RB or the keys below)
+ LeftIndicatorKey = 0xDB                       // VK_OEM_4, the Left Brace key
+ RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
++ControllerModifier = 0                        // 1: with manual indicators, hold X and press the D-pad: left/right for the indicators, down for the hazards (X alone still works the headlights)
+ 
+ [HEADLIGHTS]
+ CycleHeadlights = 0                           // 1: the game's headlight control (H, or the controller) cycles Automatic -> High beam -> Low beam -> Off (automatic stays the default)

@@ -8,8 +8,8 @@ para a tela, o que diminui bastante o serrilhado.
 > the monitor to the game's Video Mode menu and downsamples them properly to the screen. Standalone ASI.
 
 ## O que faz
-- Acrescenta ao menu **Gráficos → Modo de vídeo** resoluções acima do monitor: 1,5×, 2× e 3×
-  (num monitor 1080p: 2880×1620, 3840×2160, 5760×3240). A escolha fica salva pelo próprio jogo.
+- Acrescenta ao menu **Gráficos → Modo de vídeo** resoluções acima do monitor: por padrão 2× (num monitor
+  1080p, 3840×2160); outras escalas pelo `Scales`. A escolha fica salva pelo próprio jogo.
 - Mantém a janela do tamanho do monitor e corrige a posição do mouse no menu e no mapa.
 - Faz a redução para a tela com um filtro próprio: média em luz linear de todos os pixels renderizados,
   seguida de uma nitidez leve (estilo AMD CAS). Sem isso, o DXVK aproveita só 1 de cada 4 pixels em 2×.
@@ -34,7 +34,7 @@ para a tela, o que diminui bastante o serrilhado.
 4. **Gráficos → Modo de vídeo**: escolha uma resolução acima do monitor. **2× (3840×2160 num monitor 1080p) é
    a recomendada**: é o único fator em que cada 4 pixels viram 1, então fica nítido. 1,5× (2880×1620) e outras
    escalas não inteiras ficam mais moles que o próprio 1080p. 3× usa muita memória num jogo de 32 bits e pode
-   crashar; deixe-a de fora com `Scales = 2` se preferir.
+   crashar. Por isso o padrão é só `Scales = 2`; para ter as outras, use `Scales = 1.5, 2, 3`.
 
 Para desinstalar, apague `plugins\LibertyEdge.ResolutionUnlock.asi` e volte o Modo de vídeo para a
 resolução do monitor.
@@ -42,7 +42,7 @@ resolução do monitor.
 ## Configuração (`plugins\LibertyEdge.ResolutionUnlock.ini`)
 | Chave | Padrão | |
 |---|---|---|
-| `Scales` | `1.5, 2, 3` | múltiplos da resolução do monitor oferecidos no menu |
+| `Scales` | `2` | múltiplos da resolução do monitor oferecidos no menu |
 | `Filter` | `1` | redução com filtro próprio (0 = deixa para o DXVK/driver) |
 | `Sharpen` | `0.3` | nitidez após a redução (0 desliga, até 1) |
 | `FitWindow`, `MouseFix`, `ForceWindowed` | `1` | janela no tamanho do monitor, mouse, tela cheia → janela |
