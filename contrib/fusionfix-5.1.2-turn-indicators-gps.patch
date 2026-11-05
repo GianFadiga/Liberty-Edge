@@ -110,7 +110,7 @@ index 1876acf..c01848b 100644
              { 0, "PREF_GRAPHICSAPI",            "MAIN",       "GraphicsAPI",                        "MENU_DISPLAY_GRAPHICS_API",                           0, nullptr, 0, 1 },
              { 0, "PREF_BULLETTRACES",           "MISC",       "AlwaysShowBulletTraces",             "",                           0, nullptr, 0, 1 },
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index 06c273b..722793c 100644
+index 06c273b..099b857 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
 @@ -20,13 +20,50 @@ constexpr float TAP_THRESHOLD = 300.0f;     // ms threshold for tap detection
@@ -182,7 +182,7 @@ index 06c273b..722793c 100644
          }
          return res;
      }
-@@ -69,6 +112,78 @@ namespace BumperGate
+@@ -69,6 +112,81 @@ namespace BumperGate
      }
  }
  
@@ -232,6 +232,9 @@ index 06c273b..722793c 100644
 +        last = 0;
 +        if (!blips)
 +            return 0;
++        // Nothing while the player has no control or the screen fades (mission starts, cutscenes, loading)
++        if (!Natives::IsPlayerControlOn(Natives::ConvertIntToPlayerIndex(Natives::GetPlayerId())) || Natives::IsScreenFading() || Natives::IsScreenFadedOut())
++            return 0;
 +
 +        Blip waypoint = 0, route = 0;
 +        for (int32_t i = 0; i < MaxBlips && !waypoint; i++)
@@ -261,16 +264,17 @@ index 06c273b..722793c 100644
  // Struct to hold all vehicle state data
  struct VehicleState
  {
-@@ -196,6 +311,8 @@ public:
+@@ -196,6 +314,9 @@ public:
              static bool bManualTurnIndicators = iniReader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
              static uint32_t nLeftIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
              static uint32_t nRightIndicatorKey = iniReader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
++            static uint32_t nHazardKey = iniReader.ReadInteger("TURNINDICATORS", "HazardKey", VK_OEM_5);
 +            GpsBlinkers::Init();
 +            BumperGate::modifier = iniReader.ReadInteger("TURNINDICATORS", "ControllerModifier", 0) != 0;
              BumperGate::Install();
  
              struct VehicleFlags
-@@ -484,6 +601,20 @@ public:
+@@ -484,6 +605,20 @@ public:
                          {
                              last_state->crash_state = VehicleState::CRASHED_AND_EXITED;
                          }
@@ -291,7 +295,7 @@ index 06c273b..722793c 100644
                      }
  
                      last_player_car = PlayerCar;
-@@ -542,9 +673,10 @@ public:
+@@ -542,9 +677,29 @@ public:
                              {
                                  rb_press_time += 1000.0f * Natives::Timestep();
                              }
@@ -301,11 +305,30 @@ index 06c273b..722793c 100644
 +                            const uint32_t mod = BumperGate::modEvents.exchange(0);
 +                            bool lb_tapped = (!lb_pressed && prev_lb_pressed && lb_press_time <= TAP_THRESHOLD) || (mod & BumperGate::ModLeft);
 +                            bool rb_tapped = (!rb_pressed && prev_rb_pressed && rb_press_time <= TAP_THRESHOLD) || (mod & BumperGate::ModRight);
-+                            if ((lb_tapped && rb_tapped) || (mod & BumperGate::ModHazard))
++                            // Hazards: left + right pressed together (they don't have to be released in the same frame,
++                            // which made it near impossible on a keyboard), or the hazard key
++                            static bool both_held = false;
++                            static bool prev_hazard_key = false;
++                            bool hazard_tapped = (mod & BumperGate::ModHazard) != 0;
++                            if (lb_pressed && rb_pressed)
++                                both_held = true;
++                            if (both_held)
++                            {
++                                lb_tapped = rb_tapped = false;
++                                if (!lb_pressed && !rb_pressed)
++                                {
++                                    both_held = false;
++                                    hazard_tapped |= lb_press_time <= TAP_THRESHOLD * 2 && rb_press_time <= TAP_THRESHOLD * 2;
++                                }
++                            }
++                            bool hazard_key = nHazardKey && IsKeyboardKeyPressed(nHazardKey);
++                            hazard_tapped |= hazard_key && !prev_hazard_key;
++                            prev_hazard_key = hazard_key;
++                            if (hazard_tapped)
                              {
                                  state.manual_hazard = !state.manual_hazard;
                                  Natives::SetVehHazardlights(veh, state.manual_hazard);
-@@ -656,12 +788,21 @@ public:
+@@ -656,12 +811,21 @@ public:
                              // Process player vehicle with turn indicators
                              auto m_fSteerAngle = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(vehicleStruct) + SteerAngleOffset);
  
@@ -332,10 +355,11 @@ index 06c273b..722793c 100644
 diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
 --- a/data/plugins/GTAIV.EFLC.FusionFix.ini
 +++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
-@@ -103,6 +103,7 @@
+@@ -103,6 +103,8 @@
  ManualTurnIndicators = 0                      // legacy: makes "Automatic" behave as "Manual". Use Game > Turn Indicators: On (manual) or Automatic + manual instead (tap LB/RB or the keys below)
  LeftIndicatorKey = 0xDB                       // VK_OEM_4, the Left Brace key
  RightIndicatorKey = 0xDD                      // VK_OEM_6, the Right Brace key
++HazardKey = 0xDC                              // VK_OEM_5, the Backslash key: hazards with manual indicators (pressing both indicator keys together works too)
 +ControllerModifier = 0                        // 1: with manual indicators, hold X and press the D-pad: left/right for the indicators, down for the hazards (X alone still works the headlights)
  
  [HEADLIGHTS]

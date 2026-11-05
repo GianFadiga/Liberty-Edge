@@ -15,10 +15,10 @@ index b0cd2af..303fa7d 100644
  ReflectionMSAAQuality = 0                     // Applies MSAA to the reflection maps (exterior, interior, water, mirror) like on Xbox 360. Valid options: 2|4|8, other values are ignored and disable this feature.
 diff --git a/source/headlightcycle.ixx b/source/headlightcycle.ixx
 new file mode 100644
-index 0000000..4c0a37f
+index 0000000..299cb1a
 --- /dev/null
 +++ b/source/headlightcycle.ixx
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,97 @@
 +module;
 +
 +#include <common.hxx>
@@ -75,6 +75,9 @@ index 0000000..4c0a37f
 +                if (car)
 +                    Natives::GetDriverOfCar(car, &driver);
 +                auto veh = (car && driver == player) ? (uint8_t*)FindPlayerVehicle(0) : nullptr;
++                // Nothing while the player has no control (mission starts, cutscenes)
++                if (veh && !Natives::IsPlayerControlOn(Natives::ConvertIntToPlayerIndex(Natives::GetPlayerId())))
++                    veh = nullptr;
 +                if (!veh)
 +                {
 +                    lastCar = 0;
