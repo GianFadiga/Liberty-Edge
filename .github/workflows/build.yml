@@ -96,3 +96,14 @@ jobs:
         gh release create latest LibertyEdge.ResolutionUnlock.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
           --title "Liberty Edge Resolution Unlock (latest)" \
           --notes "Build of ${GITHUB_SHA}. Extract into the GTA IV folder (the plugins folder goes next to GTAIV.exe), set the game to Borderless Windowed and pick a resolution above your monitor in Graphics > Video Mode."
+
+    - name: Publish test build (other branches)
+      if: github.event_name == 'push' && github.ref_name != 'main'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        TAG="test-${GITHUB_REF_NAME//\//-}"
+        gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        gh release create "$TAG" LibertyEdge.ResolutionUnlock.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+          --title "Liberty Edge test build (${GITHUB_REF_NAME})" --notes "Test build of ${GITHUB_SHA} from branch ${GITHUB_REF_NAME}. Not a release."
