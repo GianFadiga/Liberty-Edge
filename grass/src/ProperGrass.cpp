@@ -3,7 +3,7 @@
 // Target: GTAIV.exe 1.2.0.59 (Complete Edition). Loaded as an .asi plugin (FusionFix / Ultimate ASI Loader).
 // Build: i686-w64-mingw32-g++ -std=c++17 -O2 -mstackrealign -shared -static -s src/ProperGrass.cpp -o GTAIV.ProperGrass.asi (see build.sh)
 #define PROPERGRASS_VERSION "1.2.1"
-#define LEGRASS_VERSION "1.0"      // LibertyEdge.Grass: Proper Grass 1.2.1 + streaming keep-alive, draw checks and crash guard
+#define LEGRASS_VERSION "1.1"      // LibertyEdge.Grass: Proper Grass 1.2.1 + streaming keep-alive, draw checks and crash guard
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <d3d9.h>
@@ -340,7 +340,9 @@ static std::unordered_map<std::string, int> g_tagNum;
 static LONG g_failFrame[4096];
 static volatile LONG g_lastReal[4096];          // GetTickCount of the last candidate of a model left as a real game entity (layer 1)
 static volatile LONG g_keepAlive = 0, g_guardHits = 0, g_drawSkips = 0;
-static const DWORD kKeepAliveMs = 250;
+static const DWORD kKeepAliveMs = 2000;          // refresh: one more real entity per model at least this often
+static volatile LONG g_liveReal[4096];           // real game entities of a model alive now (kept candidates whose triangle is still active)
+static std::unordered_map<uintptr_t, std::vector<uint16_t>> g_realByTri;      // triangle -> models of the real entities it holds (under g_instMx)
 static uint8_t g_mstate[4096];   // 0 unknown (game entities + probing), 1 instancing OK (candidates suppressed), 2 gave up
 static int g_mtries[4096];
 static int g_tableChecked = 0;   // 0 unknown, 1 ok, -1 mismatch
@@ -396,8 +398,13 @@ static void hCandAddImpl(void* mgr, void* edx, const float* pos, const float* nr
         if (g_mode == 0 && model >= 0 && model < 4096 && g_mstate[model] != 2 && ModelResident(model)) {
             LONG pc = InterlockedIncrement(&s_pass[model]);
             DWORD now = GetTickCount(), last = (DWORD)g_lastReal[model];
-            bool keep = (pc & 31) == 0 || last == 0 || now - last > kKeepAliveMs;
-            if (keep) { InterlockedExchange(&g_lastReal[model], (LONG)(now ? now : 1)); InterlockedIncrement(&g_keepAlive); }
+            // keep this one real if the model has no real entity alive right now (its last one left with its triangle),
+            // plus 1 in 32 as upstream, plus a refresh every kKeepAliveMs in case an entity went away some other way
+            bool keep = g_liveReal[model] <= 0 || (pc & 31) == 0 || last == 0 || now - last > kKeepAliveMs;
+            if (keep) {
+                InterlockedExchange(&g_lastReal[model], (LONG)(now ? now : 1)); InterlockedIncrement(&g_keepAlive);
+                std::lock_guard<std::mutex> l(g_instMx); g_realByTri[(uintptr_t)tri].push_back((uint16_t)model); InterlockedIncrement(&g_liveReal[model]);
+            }
             doSupp = !keep;
         }
         if (doSupp) {
@@ -598,12 +605,15 @@ typedef void(__fastcall* TriReleaseFn)(void* tri);
 static TriReleaseFn oTriRelease;
 static void __fastcall hTriRelease(void* tri)
 {
-    { std::lock_guard<std::mutex> l(g_instMx); g_byTri.erase((uintptr_t)tri); EdgesRemove((uintptr_t)tri); auto g = g_geom.find((uintptr_t)tri); if (g != g_geom.end()) { TriGeom c = g->second; GeomRemove((uintptr_t)tri); GeomMarkDirty(c.x0, c.y0, c.x1, c.y1, 0); } }
+    { std::lock_guard<std::mutex> l(g_instMx);
+      auto r = g_realByTri.find((uintptr_t)tri);      // its real entities go away with it (layer 1)
+      if (r != g_realByTri.end()) { for (uint16_t m : r->second) InterlockedDecrement(&g_liveReal[m & 4095]); g_realByTri.erase(r); }
+      g_byTri.erase((uintptr_t)tri); EdgesRemove((uintptr_t)tri); auto g = g_geom.find((uintptr_t)tri); if (g != g_geom.end()) { TriGeom c = g->second; GeomRemove((uintptr_t)tri); GeomMarkDirty(c.x0, c.y0, c.x1, c.y1, 0); } }
     oTriRelease(tri);
 }
 typedef void(__cdecl* ResetFn)();
 static ResetFn oReset;
-static void __cdecl hReset2() { { std::lock_guard<std::mutex> l(g_instMx); g_byTri.clear(); g_edgeCnt.clear(); g_triEdges.clear(); g_geom.clear(); g_geomCell.clear(); g_poly.clear(); g_polyCell.clear(); g_releaseQ.clear(); } oReset(); }
+static void __cdecl hReset2() { { std::lock_guard<std::mutex> l(g_instMx); g_realByTri.clear(); for (int m = 0; m < 4096; m++) g_liveReal[m] = 0; g_byTri.clear(); g_edgeCnt.clear(); g_triEdges.clear(); g_geom.clear(); g_geomCell.clear(); g_poly.clear(); g_polyCell.clear(); g_releaseQ.clear(); } oReset(); }
 
 // ---------------------------------------------------------------- D3DX (runtime-loaded) and VS patching
 struct ID3DXBufferLite : IUnknown { virtual void* STDMETHODCALLTYPE GetBufferPointer() = 0; virtual DWORD STDMETHODCALLTYPE GetBufferSize() = 0; };
@@ -1078,8 +1088,8 @@ static int GuardedSample(int model, int dirChoice, int bucket, float dist = 4.0f
         g_mstate[m] = 2; g_failFrame[m] = g_renderFrame + 5400;      // retried after ~1800 + 5400 frames (about 2 minutes at 60 fps)
         LONG h = InterlockedIncrement(&g_guardHits);
         DWORD last = (DWORD)g_lastReal[m];
-        if (h <= 50) Log("[guard] fault while drawing model %d (%s): draw dropped, model back to game entities for ~2 min (resident=%d, last kept entity %lu ms ago, hit %ld)",
-                         m, g_mname[m], (int)ModelResident(m), last ? (unsigned long)(GetTickCount() - last) : 0ul, h);
+        if (h <= 50) Log("[guard] fault while drawing model %d (%s): draw dropped, model back to game entities for ~2 min (resident=%d, live real entities=%ld, last kept entity %lu ms ago, hit %ld)",
+                         m, g_mname[m], (int)ModelResident(m), (long)g_liveReal[m], last ? (unsigned long)(GetTickCount() - last) : 0ul, h);
         return -3;
     }
     g_guardSeh = ReadSeh(); g_guardModel = model; g_guardTid = GetCurrentThreadId();
@@ -1120,6 +1130,7 @@ static void RunGroups(Packet* pk, int bucket)
     for (size_t gi = 0; gi < pk->groups.size(); gi++) {
         const Group& g = pk->groups[gi];
         if (g_mstate[g.model & 4095] != 1) continue;
+        if (g_liveReal[g.model & 4095] <= 0) { InterlockedIncrement(&g_drawSkips); continue; }      // layer 2: nothing keeps this model in memory right now: skip it this frame
         const uint8_t bit = (uint8_t)(1u << bucket); const bool lite = (g_emptyMask[g.model & 4095] & bit) && !(g_bucketMask[g.model & 4095] & bit);      // bucket known to hold no mesh of this model: cheap re-check only
         if (lite && g_goodDir >= 0) {      // only every 64th frame: uploading and drawing for a bucket the model has no meshes in is wasted work
             if (((g_renderFrame + g.model) & 63) != 0) continue;
