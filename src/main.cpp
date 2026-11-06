@@ -180,6 +180,7 @@ namespace
     // be told from a loop. It also writes LibertyEdge.ResolutionUnlock.hang.dmp (a minidump) for a closer look.
     // While a thread is suspended nothing that could need a lock it holds (heap, loader, files) is called.
     volatile DWORD gLastPresent = 0; // GetTickCount of the last frame (32 bits: read and written in one piece)
+    volatile bool gSeenFrame = false;
 
     struct ModRange { DWORD_PTR base, end; wchar_t name[64]; };
 
@@ -214,9 +215,12 @@ namespace
 
     DWORD CopyStack(DWORD_PTR sp, DWORD_PTR* out, DWORD maxWords)
     {
-        DWORD n = 0;
-        __try { for (; n < maxWords; n++) out[n] = ((const DWORD_PTR*)sp)[n]; }
-        __except (EXCEPTION_EXECUTE_HANDLER) {}
+        // stay inside the stack's committed region: a read past its end would fault (and show up in the crash log)
+        MEMORY_BASIC_INFORMATION mbi;
+        if (!VirtualQuery((void*)sp, &mbi, sizeof(mbi)) || mbi.State != MEM_COMMIT) return 0;
+        DWORD_PTR end = (DWORD_PTR)mbi.BaseAddress + mbi.RegionSize;
+        DWORD n = (DWORD)std::min<DWORD_PTR>(maxWords, (end - sp) / sizeof(DWORD_PTR));
+        memcpy(out, (const void*)sp, n * sizeof(DWORD_PTR));
         return n;
     }
 
@@ -246,7 +250,7 @@ namespace
         }
         DWORD mainTid = gWnd ? GetWindowThreadProcessId(gWnd, nullptr) : 0;
         static DWORD_PTR stack[4096];
-        fprintf(f, "%s: %u threads, last frame %lu ms ago\n", label, (unsigned)tids.size(), (unsigned long)(GetTickCount() - gLastPresent));
+        fprintf(f, "%s: %u threads, last frame %ld ms ago\n", label, (unsigned)tids.size(), (long)(LONG)(GetTickCount() - gLastPresent));
         for (DWORD tid : tids)
         {
             HANDLE h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, tid);
@@ -290,8 +294,10 @@ namespace
         SYSTEMTIME t; GetLocalTime(&t);
         fprintf(f, "%04u-%02u-%02u %02u:%02u:%02u  %s (Liberty Edge %s, backbuffer %ux%u)\n", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, why, LE_VERSION, gBackW, gBackH);
         HangSnapshot(f, "snapshot 1");
-        if (dump)
+        static bool dumped = false;
+        if (dump && !dumped)
         {
+            dumped = true;
             HANDLE df = CreateFileW((gDir + L"LibertyEdge.ResolutionUnlock.hang.dmp").c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
             if (df != INVALID_HANDLE_VALUE)
             {
@@ -318,9 +324,9 @@ namespace
             bool key = (GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_MENU) & 0x8000) && (GetAsyncKeyState('D') & 0x8000);
             if (key && !keyDown && GameInFront()) { keyDown = true; HangReport("Ctrl+Alt+D pressed", dump); continue; }
             keyDown = key;
-            DWORD last = gLastPresent;
-            if (!last) continue;
-            DWORD idle = GetTickCount() - last;
+            if (!gSeenFrame) continue;
+            // signed: the frame's tick can be a hair ahead of this thread's (unsigned, that read as 49 days of no frames)
+            LONG idle = (LONG)(GetTickCount() - gLastPresent);
             if (idle < 12000) { reported = false; continue; }
             if (!reported && GameInFront()) { reported = true; HangReport("no frame for 12 s with the game in front", dump); }
         }
@@ -1014,7 +1020,8 @@ namespace
         {
             if (!gGameDev || dev == gGameDev)
             {
-                gLastPresent = GetTickCount() | 1;
+                gLastPresent = GetTickCount();
+                gSeenFrame = true;
                 PerFrame(dev, wnd, "IDirect3DSwapChain9::Present");
             }
             dev->Release();
@@ -1027,7 +1034,7 @@ namespace
 
     HRESULT WINAPI hkPresent(IDirect3DDevice9* dev, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty)
     {
-        if (!gInSCPresent && (!gGameDev || dev == gGameDev)) { gLastPresent = GetTickCount() | 1; PerFrame(dev, wnd, "IDirect3DDevice9::Present"); }
+        if (!gInSCPresent && (!gGameDev || dev == gGameDev)) { gLastPresent = GetTickCount(); gSeenFrame = true; PerFrame(dev, wnd, "IDirect3DDevice9::Present"); }
         return oPresent(dev, src, dst, wnd, dirty);
     }
 
