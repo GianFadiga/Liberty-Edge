@@ -1,5 +1,5 @@
 diff --git a/settings/GTAIV.EFLC.FusionFix.de.json b/settings/GTAIV.EFLC.FusionFix.de.json
-index 008bcca..8b57e7f 100644
+index 008bcca..42fc71c 100644
 --- a/settings/GTAIV.EFLC.FusionFix.de.json
 +++ b/settings/GTAIV.EFLC.FusionFix.de.json
 @@ -5,6 +5,7 @@
@@ -30,7 +30,14 @@ index 008bcca..8b57e7f 100644
    "MISC.UnclampLighting.description": "Sonnenlicht reicht weiter.",
    "MISC.ZoomedMovement.description": "Erlaubt Bewegung beim Zielen mit einer Zoom-Waffe.",
    "MO_ALT": "Alternativ",
-@@ -336,7 +341,7 @@
+@@ -333,10 +338,14 @@
+   "Tree Alpha": "Baumtransparenz",
+   "TreeFX": "Baumbeleuchtung",
+   "Turn Indicators": "Blinker",
++  "TURNINDICATORS.ControllerModifier": "Controller-Modifikator",
++  "TURNINDICATORS.ControllerModifier.description": "Mit manuellen Blinkern: X halten und das Steuerkreuz drücken, links oder rechts für die Blinker, unten für die Warnblinkanlage. Solange X gehalten wird, geht das Steuerkreuz nicht an das Spiel; X allein bedient weiter die Scheinwerfer.",
++  "TURNINDICATORS.HazardKey": "Warnblinker-Taste",
++  "TURNINDICATORS.HazardKey.description": "Taste, die mit manuellen Blinkern die Warnblinkanlage ein- und ausschaltet. Beide Blinkertasten zusammen funktionieren ebenfalls.",
    "TURNINDICATORS.LeftIndicatorKey": "Taste für linken Blinker",
    "TURNINDICATORS.LeftIndicatorKey.description": "Die Taste für den linken Blinker, ein Virtual-Key-Code (0xDB ist [).",
    "TURNINDICATORS.ManualTurnIndicators": "Manuelle Blinker",
@@ -39,7 +46,7 @@ index 008bcca..8b57e7f 100644
    "TURNINDICATORS.RightIndicatorKey": "Taste für rechten Blinker",
    "TURNINDICATORS.RightIndicatorKey.description": "Die Taste für den rechten Blinker, ein Virtual-Key-Code (0xDD ist ]).",
    "UnclampLighting": "Erweiterte Sonnenlicht-Reichweite",
-@@ -384,5 +389,8 @@
+@@ -384,5 +393,8 @@
    "window.windowed": "Fenster",
    "window.borderless": "Rahmenlos",
    "MAIN.WindowMode.description": "Vollbild, ein Fenster mit Rahmen oder ein rahmenloses Fenster, das den Bildschirm füllt. Alt+Enter wechselt zwischen Vollbild und dem letzten Fenstermodus.",
@@ -50,7 +57,7 @@ index 008bcca..8b57e7f 100644
 +  "turnindicators.manual": "An (manuell)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.en.json b/settings/GTAIV.EFLC.FusionFix.en.json
-index fecc2b9..d7fc9c2 100644
+index fecc2b9..29a5fea 100644
 --- a/settings/GTAIV.EFLC.FusionFix.en.json
 +++ b/settings/GTAIV.EFLC.FusionFix.en.json
 @@ -5,6 +5,7 @@
@@ -81,7 +88,14 @@ index fecc2b9..d7fc9c2 100644
    "MISC.UnclampLighting.description": "Sunlight reaches further.",
    "MISC.ZoomedMovement.description": "Allows moving while aiming with a zoomed weapon.",
    "MO_ALT": "Alternative",
-@@ -336,7 +341,7 @@
+@@ -333,10 +338,14 @@
+   "Tree Alpha": "Tree Alpha",
+   "TreeFX": "Tree Lighting",
+   "Turn Indicators": "Turn Indicators",
++  "TURNINDICATORS.ControllerModifier": "Controller Modifier",
++  "TURNINDICATORS.ControllerModifier.description": "With manual indicators: hold X and press the D-pad, left or right for the indicators and down for the hazards. While X is held the D-pad does not reach the game; X alone still works the headlights.",
++  "TURNINDICATORS.HazardKey": "Hazard Lights Key",
++  "TURNINDICATORS.HazardKey.description": "Keyboard key that toggles the hazard lights with manual indicators. Pressing both indicator keys together works too.",
    "TURNINDICATORS.LeftIndicatorKey": "Left Indicator Key",
    "TURNINDICATORS.LeftIndicatorKey.description": "The key of the left turn indicator, a virtual-key code (0xDB is [).",
    "TURNINDICATORS.ManualTurnIndicators": "Manual Turn Indicators",
@@ -90,7 +104,7 @@ index fecc2b9..d7fc9c2 100644
    "TURNINDICATORS.RightIndicatorKey": "Right Indicator Key",
    "TURNINDICATORS.RightIndicatorKey.description": "The key of the right turn indicator, a virtual-key code (0xDD is ]).",
    "UnclampLighting": "Extended Sunlight Reach",
-@@ -384,5 +389,8 @@
+@@ -384,5 +393,8 @@
    "window.windowed": "Windowed",
    "window.borderless": "Borderless",
    "MAIN.WindowMode.description": "Fullscreen, a window with borders, or a borderless window that covers the screen. Alt+Enter switches between fullscreen and the last window mode.",
@@ -101,7 +115,7 @@ index fecc2b9..d7fc9c2 100644
 +  "turnindicators.manual": "On (manual)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.es.json b/settings/GTAIV.EFLC.FusionFix.es.json
-index 355adeb..82e053e 100644
+index 355adeb..f69cce4 100644
 --- a/settings/GTAIV.EFLC.FusionFix.es.json
 +++ b/settings/GTAIV.EFLC.FusionFix.es.json
 @@ -5,6 +5,7 @@
@@ -132,7 +146,14 @@ index 355adeb..82e053e 100644
    "MISC.UnclampLighting.description": "La luz solar llega más lejos.",
    "MISC.ZoomedMovement.description": "Permite moverse al apuntar con un arma con zoom.",
    "MO_ALT": "Alternativo",
-@@ -336,7 +341,7 @@
+@@ -333,10 +338,14 @@
+   "Tree Alpha": "Transparencia de árboles",
+   "TreeFX": "Iluminación de árboles",
+   "Turn Indicators": "Indicadores de giro",
++  "TURNINDICATORS.ControllerModifier": "Modificador del mando",
++  "TURNINDICATORS.ControllerModifier.description": "Con intermitentes manuales: mantén X y pulsa la cruceta, izquierda o derecha para los intermitentes y abajo para las luces de emergencia. Mientras X está pulsado, la cruceta no llega al juego; X solo sigue controlando los faros.",
++  "TURNINDICATORS.HazardKey": "Tecla de emergencia",
++  "TURNINDICATORS.HazardKey.description": "Tecla que enciende y apaga las luces de emergencia con intermitentes manuales. Pulsar las dos teclas de intermitente a la vez también funciona.",
    "TURNINDICATORS.LeftIndicatorKey": "Tecla del intermitente izquierdo",
    "TURNINDICATORS.LeftIndicatorKey.description": "La tecla del intermitente izquierdo, un código de tecla virtual (0xDB es [).",
    "TURNINDICATORS.ManualTurnIndicators": "Intermitentes manuales",
@@ -141,7 +162,7 @@ index 355adeb..82e053e 100644
    "TURNINDICATORS.RightIndicatorKey": "Tecla del intermitente derecho",
    "TURNINDICATORS.RightIndicatorKey.description": "La tecla del intermitente derecho, un código de tecla virtual (0xDD es ]).",
    "UnclampLighting": "Alcance ampliado de la luz solar",
-@@ -384,5 +389,8 @@
+@@ -384,5 +393,8 @@
    "window.windowed": "Ventana",
    "window.borderless": "Sin bordes",
    "MAIN.WindowMode.description": "Pantalla completa, una ventana con bordes o una ventana sin bordes que cubre la pantalla. Alt+Intro cambia entre pantalla completa y el último modo de ventana.",
@@ -152,7 +173,7 @@ index 355adeb..82e053e 100644
 +  "turnindicators.manual": "Activados (manuales)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.fr.json b/settings/GTAIV.EFLC.FusionFix.fr.json
-index 3fd8748..f01ebea 100644
+index 3fd8748..c380227 100644
 --- a/settings/GTAIV.EFLC.FusionFix.fr.json
 +++ b/settings/GTAIV.EFLC.FusionFix.fr.json
 @@ -5,6 +5,7 @@
@@ -183,7 +204,14 @@ index 3fd8748..f01ebea 100644
    "MISC.UnclampLighting.description": "La lumière du soleil porte plus loin.",
    "MISC.ZoomedMovement.description": "Permet de se déplacer en visant avec une arme à zoom.",
    "MO_ALT": "Alternatif",
-@@ -336,7 +341,7 @@
+@@ -333,10 +338,14 @@
+   "Tree Alpha": "Alpha des arbres",
+   "TreeFX": "Éclairage des arbres",
+   "Turn Indicators": "Clignotants",
++  "TURNINDICATORS.ControllerModifier": "Modificateur manette",
++  "TURNINDICATORS.ControllerModifier.description": "Avec les clignotants manuels : maintenez X et appuyez sur la croix directionnelle, gauche ou droite pour les clignotants et bas pour les feux de détresse. Tant que X est maintenu, la croix n'est pas transmise au jeu ; X seul commande toujours les phares.",
++  "TURNINDICATORS.HazardKey": "Touche feux de détresse",
++  "TURNINDICATORS.HazardKey.description": "Touche qui allume et éteint les feux de détresse avec les clignotants manuels. Appuyer sur les deux touches de clignotant en même temps fonctionne aussi.",
    "TURNINDICATORS.LeftIndicatorKey": "Touche du clignotant gauche",
    "TURNINDICATORS.LeftIndicatorKey.description": "La touche du clignotant gauche, un code de touche virtuelle (0xDB est [).",
    "TURNINDICATORS.ManualTurnIndicators": "Clignotants manuels",
@@ -192,7 +220,7 @@ index 3fd8748..f01ebea 100644
    "TURNINDICATORS.RightIndicatorKey": "Touche du clignotant droit",
    "TURNINDICATORS.RightIndicatorKey.description": "La touche du clignotant droit, un code de touche virtuelle (0xDD est ]).",
    "UnclampLighting": "Portée étendue de la lumière du soleil",
-@@ -384,5 +389,8 @@
+@@ -384,5 +393,8 @@
    "window.windowed": "Fenêtre",
    "window.borderless": "Sans bordures",
    "MAIN.WindowMode.description": "Plein écran, une fenêtre avec bordures ou une fenêtre sans bordures qui couvre l'écran. Alt+Entrée bascule entre le plein écran et le dernier mode fenêtré.",
@@ -203,7 +231,7 @@ index 3fd8748..f01ebea 100644
 +  "turnindicators.manual": "Activés (manuels)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.it.json b/settings/GTAIV.EFLC.FusionFix.it.json
-index fec01b5..9f9e56a 100644
+index fec01b5..aa46477 100644
 --- a/settings/GTAIV.EFLC.FusionFix.it.json
 +++ b/settings/GTAIV.EFLC.FusionFix.it.json
 @@ -5,6 +5,7 @@
@@ -234,7 +262,14 @@ index fec01b5..9f9e56a 100644
    "MISC.UnclampLighting.description": "La luce solare arriva più lontano.",
    "MISC.ZoomedMovement.description": "Permette di muoversi mentre si mira con un'arma con zoom.",
    "MO_ALT": "Alternativo",
-@@ -336,7 +341,7 @@
+@@ -333,10 +338,14 @@
+   "Tree Alpha": "Trasparenza degli alberi",
+   "TreeFX": "Illuminazione degli alberi",
+   "Turn Indicators": "Indicatori di direzione",
++  "TURNINDICATORS.ControllerModifier": "Modificatore controller",
++  "TURNINDICATORS.ControllerModifier.description": "Con gli indicatori manuali: tieni premuto X e premi la croce direzionale, sinistra o destra per gli indicatori e giù per le luci di emergenza. Mentre X è premuto, la croce non arriva al gioco; X da solo comanda ancora i fari.",
++  "TURNINDICATORS.HazardKey": "Tasto luci di emergenza",
++  "TURNINDICATORS.HazardKey.description": "Tasto che accende e spegne le luci di emergenza con gli indicatori manuali. Premere insieme i due tasti degli indicatori funziona ugualmente.",
    "TURNINDICATORS.LeftIndicatorKey": "Tasto indicatore sinistro",
    "TURNINDICATORS.LeftIndicatorKey.description": "Il tasto dell'indicatore di direzione sinistro, un codice virtual-key (0xDB è [).",
    "TURNINDICATORS.ManualTurnIndicators": "Indicatori di direzione manuali",
@@ -243,7 +278,7 @@ index fec01b5..9f9e56a 100644
    "TURNINDICATORS.RightIndicatorKey": "Tasto indicatore destro",
    "TURNINDICATORS.RightIndicatorKey.description": "Il tasto dell'indicatore di direzione destro, un codice virtual-key (0xDD è ]).",
    "UnclampLighting": "Estensione della portata della luce solare",
-@@ -384,5 +389,8 @@
+@@ -384,5 +393,8 @@
    "window.windowed": "In finestra",
    "window.borderless": "Senza bordi",
    "MAIN.WindowMode.description": "Schermo intero, una finestra con bordi o una finestra senza bordi che copre lo schermo. Alt+Invio passa dallo schermo intero all'ultima modalità finestra.",
@@ -254,7 +289,7 @@ index fec01b5..9f9e56a 100644
 +  "turnindicators.manual": "Attivi (manuali)"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.ja.json b/settings/GTAIV.EFLC.FusionFix.ja.json
-index 6a25413..8d2f01c 100644
+index 6a25413..cf51f8b 100644
 --- a/settings/GTAIV.EFLC.FusionFix.ja.json
 +++ b/settings/GTAIV.EFLC.FusionFix.ja.json
 @@ -5,6 +5,7 @@
@@ -285,7 +320,14 @@ index 6a25413..8d2f01c 100644
    "MISC.UnclampLighting.description": "日光がより遠くまで届きます。",
    "MISC.ZoomedMovement.description": "ズーム可能な武器で狙っている間も移動できます。",
    "MO_ALT": "代替案",
-@@ -336,7 +341,7 @@
+@@ -333,10 +338,14 @@
+   "Tree Alpha": "木の透過",
+   "TreeFX": "木のライティング",
+   "Turn Indicators": "ウィンカー",
++  "TURNINDICATORS.ControllerModifier": "コントローラー修飾キー",
++  "TURNINDICATORS.ControllerModifier.description": "手動ウィンカー使用時：Xを押しながら十字キーの左右でウィンカー、下でハザード。Xを押している間は十字キーがゲームに送られません。X単独では従来どおりヘッドライトを操作します。",
++  "TURNINDICATORS.HazardKey": "ハザードキー",
++  "TURNINDICATORS.HazardKey.description": "手動ウィンカー使用時にハザードランプを切り替えるキー。左右のウィンカーキーを同時に押しても切り替わります。",
    "TURNINDICATORS.LeftIndicatorKey": "左ウィンカーのキー",
    "TURNINDICATORS.LeftIndicatorKey.description": "左ウィンカーのキーです。仮想キーコードで指定します（0xDBは[）。",
    "TURNINDICATORS.ManualTurnIndicators": "手動ウィンカー",
@@ -294,7 +336,7 @@ index 6a25413..8d2f01c 100644
    "TURNINDICATORS.RightIndicatorKey": "右ウィンカーのキー",
    "TURNINDICATORS.RightIndicatorKey.description": "右ウィンカーのキーです。仮想キーコードで指定します（0xDDは]）。",
    "UnclampLighting": "日照範囲の拡大",
-@@ -384,5 +389,8 @@
+@@ -384,5 +393,8 @@
    "window.windowed": "ウィンドウ",
    "window.borderless": "フチなし",
    "MAIN.WindowMode.description": "フルスクリーン、枠付きウィンドウ、または画面を覆うフチなしウィンドウ。Alt+Enterでフルスクリーンと前回のウィンドウモードを切り替えます。",
@@ -305,7 +347,7 @@ index 6a25413..8d2f01c 100644
 +  "turnindicators.manual": "オン（手動）"
  }
 diff --git a/settings/GTAIV.EFLC.FusionFix.json b/settings/GTAIV.EFLC.FusionFix.json
-index 0728c38..6c35dd9 100644
+index 0728c38..5e43159 100644
 --- a/settings/GTAIV.EFLC.FusionFix.json
 +++ b/settings/GTAIV.EFLC.FusionFix.json
 @@ -254,9 +254,16 @@
@@ -327,8 +369,25 @@ index 0728c38..6c35dd9 100644
      },
      {
        "id": "MISC.AlwaysShowBulletTraces", "type": "bool", "default": 0,
+@@ -808,6 +815,16 @@
+       "label": "@TURNINDICATORS.RightIndicatorKey", "description": "@TURNINDICATORS.RightIndicatorKey.description",
+       "page": "advanced", "group": "@group.turn indicators", "visibility": "editor", "apply": "restart"
+     },
++    {
++      "id": "TURNINDICATORS.HazardKey", "type": "key", "default": "0x50",
++      "label": "@TURNINDICATORS.HazardKey", "description": "@TURNINDICATORS.HazardKey.description",
++      "page": "advanced", "group": "@group.turn indicators", "visibility": "editor", "apply": "restart"
++    },
++    {
++      "id": "TURNINDICATORS.ControllerModifier", "type": "bool", "default": 0,
++      "label": "@TURNINDICATORS.ControllerModifier", "description": "@TURNINDICATORS.ControllerModifier.description",
++      "page": "advanced", "group": "@group.turn indicators", "control": [ "switch", "cycler" ], "visibility": "editor", "apply": "restart"
++    },
+     {
+       "id": "EXPERIMENTAL.DisplayMemoryStats", "type": "bool", "default": 0,
+       "label": "@EXPERIMENTAL.DisplayMemoryStats", "description": "@EXPERIMENTAL.DisplayMemoryStats.description",
 diff --git a/settings/GTAIV.EFLC.FusionFix.ru.json b/settings/GTAIV.EFLC.FusionFix.ru.json
-index 8af2c6d..e485fdc 100644
+index 8af2c6d..6c6b699 100644
 --- a/settings/GTAIV.EFLC.FusionFix.ru.json
 +++ b/settings/GTAIV.EFLC.FusionFix.ru.json
 @@ -5,6 +5,7 @@
@@ -359,7 +418,14 @@ index 8af2c6d..e485fdc 100644
    "MISC.UnclampLighting.description": "Солнечный свет достает дальше.",
    "MISC.ZoomedMovement.description": "Позволяет двигаться при прицеливании из оружия с приближением.",
    "MO_ALT": "Альтернативный",
-@@ -336,7 +341,7 @@
+@@ -333,10 +338,14 @@
+   "Tree Alpha": "Прозрачность деревьев",
+   "TreeFX": "Освещение деревьев",
+   "Turn Indicators": "Указатели поворота",
++  "TURNINDICATORS.ControllerModifier": "Модификатор геймпада",
++  "TURNINDICATORS.ControllerModifier.description": "С ручными указателями: удерживайте X и нажимайте крестовину — влево или вправо для поворотников, вниз для аварийки. Пока X удерживается, крестовина не передаётся игре; одна кнопка X по-прежнему управляет фарами.",
++  "TURNINDICATORS.HazardKey": "Клавиша аварийки",
++  "TURNINDICATORS.HazardKey.description": "Клавиша, включающая и выключающая аварийную сигнализацию при ручных указателях. Нажатие обеих клавиш поворотников вместе тоже работает.",
    "TURNINDICATORS.LeftIndicatorKey": "Клавиша левого поворотника",
    "TURNINDICATORS.LeftIndicatorKey.description": "Клавиша левого указателя поворота, код виртуальной клавиши (0xDB — это [).",
    "TURNINDICATORS.ManualTurnIndicators": "Ручные указатели поворота",
@@ -368,7 +434,7 @@ index 8af2c6d..e485fdc 100644
    "TURNINDICATORS.RightIndicatorKey": "Клавиша правого поворотника",
    "TURNINDICATORS.RightIndicatorKey.description": "Клавиша правого указателя поворота, код виртуальной клавиши (0xDD — это ]).",
    "UnclampLighting": "Увеличенная дистанция солнечного света",
-@@ -384,5 +389,8 @@
+@@ -384,5 +393,8 @@
    "window.windowed": "Окно",
    "window.borderless": "Без рамки",
    "MAIN.WindowMode.description": "Полный экран, окно с рамкой или окно без рамки на весь экран. Alt+Enter переключает между полным экраном и последним оконным режимом.",
@@ -399,7 +465,7 @@ index 5646454..a700d6e 100644
              AddSetting(screen, "MISC.DisableWardrobeTransition", {}, NotTLAD);
              AddSetting(screen, "MISC.InstantStopTaxi");
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index ab7d6f9..a6a3fdb 100644
+index ab7d6f9..2275310 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
 @@ -2,6 +2,7 @@ module;
@@ -410,20 +476,57 @@ index ab7d6f9..a6a3fdb 100644
  
  export module turnindicators;
  
-@@ -16,6 +17,130 @@ constexpr float ACTIVATION_DELAY = 400.0f;  // ms delay before activation
+@@ -16,6 +17,176 @@ constexpr float ACTIVATION_DELAY = 400.0f;  // ms delay before activation
  constexpr float BLINK_INTERVAL = 400.0f;    // ms blink interval (on/off cycle)
  constexpr float TAP_THRESHOLD = 300.0f;     // ms threshold for tap detection
  
 +// Controller bumpers with manual turn indicators: LB/RB also fire/aim and pull the handbrake in vehicles. While the
 +// player drives with manual indicators, the game only gets a bumper once it has been held longer than a tap
 +// (TAP_THRESHOLD), so a tap only works the turn indicator. The raw state is kept for the indicator logic.
++// Optional modifier ([TURNINDICATORS] ControllerModifier): while X is held, the D-pad works the indicators instead of
++// the game (left/right: indicators, down: hazards). X reaches the game only when held longer than a tap and not
++// used for a combination, so holding X alone still works the game's headlight control.
 +namespace BumperGate
 +{
 +    constexpr uint16_t LB = 0x0100, RB = 0x0200; // XINPUT_GAMEPAD_LEFT_SHOULDER / RIGHT_SHOULDER
++    constexpr uint16_t kDpadDown = 0x0002, kDpadLeft = 0x0004, kDpadRight = 0x0008, kButtonX = 0x4000;
++    constexpr uint16_t kDpadMod = kDpadDown | kDpadLeft | kDpadRight;
++    enum ModEvent : uint32_t { ModLeft = 1, ModRight = 2, ModHazard = 4 };
 +    std::atomic<bool> active{ false };
++    std::atomic<bool> modifier{ false };
++    std::atomic<uint32_t> modEvents{ 0 }; // combinations pressed since the game last read them
 +    std::atomic<uint16_t> raw{ 0 };
 +    SafetyHookInline shXInputGetState{};
-+    DWORD lbStart = 0, rbStart = 0;
++    DWORD lbStart = 0, rbStart = 0, xStart = 0;
++    bool xCombo = false;
++    uint16_t prevDpad = 0;
++
++    void Modifier(uint16_t& buttons, DWORD now)
++    {
++        uint16_t dpad = buttons & kDpadMod;
++        uint16_t pressed = dpad & ~prevDpad;
++        prevDpad = dpad;
++        if (!(buttons & kButtonX))
++        {
++            xStart = 0;
++            xCombo = false;
++            return;
++        }
++        if (!xStart)
++            xStart = now ? now : 1;
++        if (pressed)
++        {
++            uint32_t ev = 0;
++            if (pressed & kDpadLeft) ev |= ModLeft;
++            if (pressed & kDpadRight) ev |= ModRight;
++            if (pressed & kDpadDown) ev |= ModHazard;
++            modEvents |= ev;
++            xCombo = true;
++        }
++        buttons &= ~kDpadMod;
++        if (xCombo || now - xStart < (DWORD)TAP_THRESHOLD)
++            buttons &= ~kButtonX;
++    }
 +
 +    void Gate(uint16_t& buttons, uint16_t mask, DWORD& start, DWORD now)
 +    {
@@ -450,9 +553,15 @@ index ab7d6f9..a6a3fdb 100644
 +                DWORD now = GetTickCount();
 +                Gate(buttons, LB, lbStart, now);
 +                Gate(buttons, RB, rbStart, now);
++                if (modifier)
++                    Modifier(buttons, now);
 +            }
 +            else
-+                lbStart = rbStart = 0;
++            {
++                lbStart = rbStart = xStart = 0;
++                xCombo = false;
++                prevDpad = buttons & kDpadMod;
++            }
 +        }
 +        return res;
 +    }
@@ -503,7 +612,7 @@ index ab7d6f9..a6a3fdb 100644
 +    // 0 none, 1 left, 2 right (the turn indicator directions)
 +    int Direction()
 +    {
-+        static float timer = 0.0f;
++        static float timer = 250.0f; // the first call reads the route straight away
 +        static int last = 0;
 +        timer += 1000.0f * Natives::Timestep();
 +        if (timer < 250.0f)
@@ -511,6 +620,9 @@ index ab7d6f9..a6a3fdb 100644
 +        timer = 0.0f;
 +        last = 0;
 +        if (!blips)
++            return 0;
++        // Nothing while the player has no control or the screen fades (mission starts, cutscenes, loading)
++        if (!Natives::IsPlayerControlOn(Natives::ConvertIntToPlayerIndex(Natives::GetPlayerId())) || Natives::IsScreenFading() || Natives::IsScreenFadedOut())
 +            return 0;
 +
 +        Blip waypoint = 0, route = 0;
@@ -541,24 +653,27 @@ index ab7d6f9..a6a3fdb 100644
  // Struct to hold all vehicle state data
  struct VehicleState
  {
-@@ -38,6 +163,7 @@ struct VehicleState
+@@ -38,6 +209,8 @@ struct VehicleState
      float blink_timer = 0.0f;
      float final_blink_timer = 0.0f;
      bool manual_hazard = false;
 +    bool manual_active = false; // a blinker the player switched on by hand (automatic blinkers stay out until it is switched off)
++    bool auto_suspended = false; // a manual blinker or hazard was on last frame
      int pending_blinker = 0;
  };
  
-@@ -142,6 +268,8 @@ public:
+@@ -142,6 +315,10 @@ public:
              static bool bManualTurnIndicators = reader.ReadInteger("TURNINDICATORS", "ManualTurnIndicators", 0);
              static uint32_t nLeftIndicatorKey = reader.ReadInteger("TURNINDICATORS", "LeftIndicatorKey", VK_OEM_4);
              static uint32_t nRightIndicatorKey = reader.ReadInteger("TURNINDICATORS", "RightIndicatorKey", VK_OEM_6);
++            static uint32_t nHazardKey = reader.ReadInteger("TURNINDICATORS", "HazardKey", 0x50);
 +            GpsBlinkers::Init();
++            BumperGate::modifier = reader.ReadInteger("TURNINDICATORS", "ControllerModifier", 0) != 0;
 +            BumperGate::Install();
  
              struct VehicleFlags
              {
-@@ -386,6 +514,11 @@ public:
+@@ -386,6 +563,11 @@ public:
              FusionFix::onGameProcessEvent() += [&]()
              {
                  static auto ti = FusionFixSettings.GetRef("PREF_TURNINDICATORS");
@@ -570,7 +685,7 @@ index ab7d6f9..a6a3fdb 100644
                  static Vehicle last_player_car = 0;
                  static bool prev_lb_pressed = false;
                  static bool prev_rb_pressed = false;
-@@ -400,6 +533,8 @@ public:
+@@ -400,6 +582,8 @@ public:
                      Natives::GetCarCharIsUsing(PlayerPed, &PlayerCar);
                  }
  
@@ -579,7 +694,28 @@ index ab7d6f9..a6a3fdb 100644
                  // Check if player has fully entered the vehicle (can actually drive)
                  auto pVehicleStruct = FindPlayerVehicle(0);
                  bool player_fully_in_vehicle = (PlayerCar != 0 && pVehicleStruct != nullptr);
-@@ -446,6 +581,8 @@ public:
+@@ -422,6 +606,20 @@ public:
+                         {
+                             last_state->crash_state = VehicleState::CRASHED_AND_EXITED;
+                         }
++                        // The turn indicators go off when the player leaves the vehicle; otherwise a manual indicator
++                        // kept blinking on the parked car forever (#1438). Hazards switched on by hand stay on, as in a real car.
++                        if (last_state && (last_state->current_blinker != 0 || last_state->blinkers_active || last_state->pending_blinker != 0))
++                        {
++                            Natives::SetVehIndicatorlights(last_player_car, false);
++                            last_state->current_blinker = 0;
++                            last_state->blinkers_active = false;
++                            last_state->should_stop_blinking = false;
++                            last_state->blink_state = false;
++                            last_state->blink_timer = 0.0f;
++                            last_state->final_blink_timer = 0.0f;
++                            last_state->pending_blinker = 0;
++                            last_state->manual_active = false;
++                        }
+                     }
+ 
+                     last_player_car = PlayerCar;
+@@ -446,6 +644,8 @@ public:
  
                      bool is_player_vehicle = (veh == PlayerCar);
                      bool player_in_vehicle = is_player_vehicle && player_fully_in_vehicle;
@@ -588,7 +724,7 @@ index ab7d6f9..a6a3fdb 100644
  
                      // Skip processing if feature is disabled and no active blinkers
                      if (!ti->get() && state.current_blinker == 0)
-@@ -458,10 +595,10 @@ public:
+@@ -458,10 +658,10 @@ public:
  
                      if (player_in_vehicle && vehicleStruct)
                      {
@@ -602,7 +738,40 @@ index ab7d6f9..a6a3fdb 100644
                              if (lb_pressed && !prev_lb_pressed)
                              {
                                  lb_press_time = 0.0f;
-@@ -494,6 +631,7 @@ public:
+@@ -478,9 +678,29 @@ public:
+                             {
+                                 rb_press_time += 1000.0f * Natives::Timestep();
+                             }
+-                            bool lb_tapped = !lb_pressed && prev_lb_pressed && lb_press_time <= TAP_THRESHOLD;
+-                            bool rb_tapped = !rb_pressed && prev_rb_pressed && rb_press_time <= TAP_THRESHOLD;
+-                            if (lb_tapped && rb_tapped)
++                            const uint32_t mod = BumperGate::modEvents.exchange(0);
++                            bool lb_tapped = (!lb_pressed && prev_lb_pressed && lb_press_time <= TAP_THRESHOLD) || (mod & BumperGate::ModLeft);
++                            bool rb_tapped = (!rb_pressed && prev_rb_pressed && rb_press_time <= TAP_THRESHOLD) || (mod & BumperGate::ModRight);
++                            // Hazards: left + right pressed together (they don't have to be released in the same frame,
++                            // which made it near impossible on a keyboard), or the hazard key
++                            static bool both_held = false;
++                            static bool prev_hazard_key = false;
++                            bool hazard_tapped = (mod & BumperGate::ModHazard) != 0;
++                            if (lb_pressed && rb_pressed)
++                                both_held = true;
++                            if (both_held)
++                            {
++                                lb_tapped = rb_tapped = false;
++                                if (!lb_pressed && !rb_pressed)
++                                {
++                                    both_held = false;
++                                    hazard_tapped |= lb_press_time <= TAP_THRESHOLD * 2 && rb_press_time <= TAP_THRESHOLD * 2;
++                                }
++                            }
++                            bool hazard_key = nHazardKey && IsKeyboardKeyPressed(nHazardKey);
++                            hazard_tapped |= hazard_key && !prev_hazard_key;
++                            prev_hazard_key = hazard_key;
++                            if (hazard_tapped)
+                             {
+                                 state.manual_hazard = !state.manual_hazard;
+                                 Natives::SetVehHazardlights(veh, state.manual_hazard);
+@@ -494,6 +714,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -610,7 +779,7 @@ index ab7d6f9..a6a3fdb 100644
                                  }
                              }
                              else if (lb_tapped)
-@@ -513,6 +651,7 @@ public:
+@@ -513,6 +734,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -618,7 +787,7 @@ index ab7d6f9..a6a3fdb 100644
                                  }
                                  else
                                  {
-@@ -522,6 +661,7 @@ public:
+@@ -522,6 +744,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 1;
@@ -626,7 +795,7 @@ index ab7d6f9..a6a3fdb 100644
                                      }
                                      else
                                      {
-@@ -532,6 +672,7 @@ public:
+@@ -532,6 +755,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -634,7 +803,7 @@ index ab7d6f9..a6a3fdb 100644
                                      }
                                  }
                              }
-@@ -552,6 +693,7 @@ public:
+@@ -552,6 +776,7 @@ public:
                                      state.blink_timer = 0.0f;
                                      state.final_blink_timer = 0.0f;
                                      state.pending_blinker = 0;
@@ -642,7 +811,7 @@ index ab7d6f9..a6a3fdb 100644
                                  }
                                  else
                                  {
-@@ -561,6 +703,7 @@ public:
+@@ -561,6 +786,7 @@ public:
                                          state.should_stop_blinking = true;
                                          state.final_blink_timer = 0.0f;
                                          state.pending_blinker = 2;
@@ -650,7 +819,7 @@ index ab7d6f9..a6a3fdb 100644
                                      }
                                      else
                                      {
-@@ -571,6 +714,7 @@ public:
+@@ -571,6 +797,7 @@ public:
                                          state.blink_state = true;
                                          Natives::SetVehIndicatorlights(veh, true);
                                          state.pending_blinker = 0;
@@ -658,14 +827,28 @@ index ab7d6f9..a6a3fdb 100644
                                      }
                                  }
                              }
-@@ -578,16 +722,28 @@ public:
+@@ -578,16 +805,49 @@ public:
                              prev_rb_pressed = rb_pressed;
                          }
                          else
 +                            state.manual_active = false;
 +                        // Automatic blinkers (in Automatic + manual only while no blinker or hazard was switched on by hand)
++                        // When a manual blinker or the hazards are switched off, the automatic indicators start afresh:
++                        // the turn they were tracking may be over, and a stale state kept them from coming back.
++                        const bool manual_now = state.manual_active || state.manual_hazard;
++                        if (state.auto_suspended && !manual_now)
++                        {
++                            state.is_turning = false;
++                            state.last_turn_direction = 0;
++                            state.turn_start_timer = 0.0f;
++                            state.turn_stop_timer = 0.0f;
++                        }
++                        state.auto_suspended = manual_now;
++
 +                        if (bAutoMode && !state.manual_active && !state.manual_hazard)
                          {
++                            if (!state.blinkers_active)
++                                state.should_stop_blinking = false; // nothing left to stop
                              // Process player vehicle with turn indicators
                              auto m_fSteerAngle = *reinterpret_cast<float*>(reinterpret_cast<uintptr_t>(vehicleStruct) + SteerAngleOffset);
  
@@ -684,8 +867,24 @@ index ab7d6f9..a6a3fdb 100644
 +                            else if (bFollowSteering && m_fSteerAngle < -STEER_THRESHOLD)
                                  current_turn_direction = 2; // Right
 +                            // Not steering (or steering ignored): follow the GPS route, if there is one
++                            bool from_gps = false;
 +                            if (current_turn_direction == 0 && bFollowGps)
++                            {
 +                                current_turn_direction = GpsBlinkers::Direction();
++                                from_gps = current_turn_direction != 0;
++                            }
++                            // The GPS instruction is already settled (read every 250 ms), so it needs no activation delay;
++                            // the delay only filters out short steering corrections
++                            const float activation_delay = from_gps ? 0.0f : ACTIVATION_DELAY;
  
                              bool currently_turning = (current_turn_direction != 0);
                              bool direction_changed = (current_turn_direction != state.last_turn_direction &&
+@@ -632,7 +892,7 @@ public:
+                             {
+                                 state.turn_start_timer += 1000.0f * Natives::Timestep();
+ 
+-                                if (state.turn_start_timer >= ACTIVATION_DELAY && !state.blinkers_active)
++                                if (state.turn_start_timer >= activation_delay && !state.blinkers_active)
+                                 {
+                                     state.current_blinker = current_turn_direction;
+                                     state.blinkers_active = true;

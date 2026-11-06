@@ -80,8 +80,17 @@ Neste PC o jogo fica preso ao processador (5 a 7 mil chamadas de desenho por qua
 
 O **Grass and Procedural Props Fix** (Nexus 1230) foi usado antes e saiu: o guia da Gillian o removeu por causar
 crashes, e com limites altos ele pesava no processador e foi o principal suspeito de um travamento ao carregar missão. O Proper Grass
-faz o mesmo papel; não use os dois juntos. A release `propergrass-1.2.1` deste repositório é uma compilação sem
-alterações do código do autor (MIT), para quem não usa o Nexus.
+faz o mesmo papel; não use os dois juntos.
+
+A release `propergrass-1.2.1` deste repositório compila o código do autor (MIT) com uma correção proposta a ele
+(`contrib/propergrass-1.2.1-reloaded-model-fix.patch`): quando o jogo descarrega e recarrega um modelo de planta,
+o comando de amostra que o mod reaproveitava apontava para o modelo antigo, e o jogo crashava desenhando
+(andando pela cidade). Agora ele é refeito para o modelo recarregado. Ajustes usados no `ProperGrass.ini`:
+`RadiusMultiplier=2.2` e `FadeWidth=20` (a grama vai até ~80 m e surge aos poucos, sem nascer na frente do carro),
+`TriCapacity=24576`. O custo fica na placa de vídeo, que aqui sobra.
+
+Cutscenes: `CutsceneFpsLimit = 30` no `.ini` do FusionFix resolveu um carregamento infinito ao iniciar a missão
+"Dust Off".
 
 ## Contribuição ao FusionFix: setas, GPS e farol
 Feito para este setup e enviado ao FusionFix
@@ -95,13 +104,17 @@ a release **fusionfix-turnindicators-test** traz o FusionFix 5.1.2 com tudo isso
 | Auto Indicators | menu Controles | o que as setas automáticas seguem: Volante + GPS / Volante / GPS |
 | `ManualTurnIndicators` | `.ini` `[TURNINDICATORS]` | legado: faz Automatic agir como On (manual) |
 | `LeftIndicatorKey` / `RightIndicatorKey` | `.ini` `[TURNINDICATORS]` | teclas das setas manuais (`[` e `]`) |
+| `HazardKey` | `.ini` `[TURNINDICATORS]` | tecla do pisca-alerta (`P`); as duas teclas de seta juntas também ligam |
+| `ControllerModifier` | `.ini` `[TURNINDICATORS]` | segurando X no controle: direcional esquerda/direita = setas, baixo = pisca-alerta |
 | `CycleHeadlights` | `.ini` `[HEADLIGHTS]` | o comando de farol do jogo (H ou controle) passa por Automático → Alto → Baixo → Desligado |
 | `ShowNotice` | `.ini` `[HEADLIGHTS]` | mostra o modo do farol na tela |
 
 - **Setas manuais no controle:** toque em LB/RB liga a seta; os dois juntos, pisca-alerta. Com setas manuais, o
   jogo só recebe LB/RB (atirar, freio de mão) depois de 300 ms segurando, então o toque não atira nem freia.
-- **GPS:** com waypoint ou rota de missão, a seta acende pouco antes de cada curva anunciada pela voz do GPS e
-  apaga depois da curva. Lê a instrução com `GENERATE_DIRECTIONS` (1 direita, 2 esquerda) e o destino na lista de
+- **Ao sair do carro** as setas apagam (antes ficavam piscando para sempre no carro parado); o pisca-alerta ligado
+  na mão continua, como num carro de verdade.
+- **GPS:** com waypoint ou rota de missão, a seta acende assim que a voz do GPS anuncia a curva e apaga depois
+  dela. Fica parado em cutscenes e telas de transição. Lê a instrução com `GENERATE_DIRECTIONS` (1 direita, 2 esquerda) e o destino na lista de
   blips do radar (waypoint ou o blip com a flag de rota).
 - **Farol:** o ciclo acompanha o próprio comando de farol do jogo, venha ele do teclado ou do controle; nenhuma
   tecla é lida ou substituída.

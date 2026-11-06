@@ -182,10 +182,10 @@ index 8af2c6d..d258854 100644
    "group.keyboard": "Клавиатура и мышь",
 diff --git a/source/headlightcycle.ixx b/source/headlightcycle.ixx
 new file mode 100644
-index 0000000..046f651
+index 0000000..82f5ef2
 --- /dev/null
 +++ b/source/headlightcycle.ixx
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,98 @@
 +module;
 +
 +#include <common.hxx>
@@ -243,6 +243,9 @@ index 0000000..046f651
 +                if (car)
 +                    Natives::GetDriverOfCar(car, &driver);
 +                auto veh = (car && driver == player) ? (uint8_t*)FindPlayerVehicle(0) : nullptr;
++                // Nothing while the player has no control (mission starts, cutscenes)
++                if (veh && !Natives::IsPlayerControlOn(Natives::ConvertIntToPlayerIndex(Natives::GetPlayerId())))
++                    veh = nullptr;
 +                if (!veh)
 +                {
 +                    lastCar = 0;
