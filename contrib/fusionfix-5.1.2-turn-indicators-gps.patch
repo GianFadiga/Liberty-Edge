@@ -110,7 +110,7 @@ index 1876acf..c01848b 100644
              { 0, "PREF_GRAPHICSAPI",            "MAIN",       "GraphicsAPI",                        "MENU_DISPLAY_GRAPHICS_API",                           0, nullptr, 0, 1 },
              { 0, "PREF_BULLETTRACES",           "MISC",       "AlwaysShowBulletTraces",             "",                           0, nullptr, 0, 1 },
 diff --git a/source/turnindicators.ixx b/source/turnindicators.ixx
-index 06c273b..7ad52ce 100644
+index 06c273b..3b58117 100644
 --- a/source/turnindicators.ixx
 +++ b/source/turnindicators.ixx
 @@ -20,13 +20,50 @@ constexpr float TAP_THRESHOLD = 300.0f;     // ms threshold for tap detection
@@ -223,7 +223,7 @@ index 06c273b..7ad52ce 100644
 +    // 0 none, 1 left, 2 right (the turn indicator directions)
 +    int Direction()
 +    {
-+        static float timer = 0.0f;
++        static float timer = 250.0f; // the first call reads the route straight away
 +        static int last = 0;
 +        timer += 1000.0f * Natives::Timestep();
 +        if (timer < 250.0f)
@@ -336,7 +336,7 @@ index 06c273b..7ad52ce 100644
                              {
                                  state.manual_hazard = !state.manual_hazard;
                                  Natives::SetVehHazardlights(veh, state.manual_hazard);
-@@ -651,17 +807,40 @@ public:
+@@ -651,17 +807,47 @@ public:
                          else
                              state.manual_active = false;
                          // Automatic blinkers (in Automatic + manual only while no blinker or hazard was switched on by hand)
@@ -374,11 +374,27 @@ index 06c273b..7ad52ce 100644
 +                            else if (bFollowSteering && m_fSteerAngle < -STEER_THRESHOLD)
                                  current_turn_direction = 2; // Right
 +                            // Not steering (or steering ignored): follow the GPS route, if there is one
++                            bool from_gps = false;
 +                            if (current_turn_direction == 0 && bFollowGps)
++                            {
 +                                current_turn_direction = GpsBlinkers::Direction();
++                                from_gps = current_turn_direction != 0;
++                            }
++                            // The GPS instruction is already settled (read every 250 ms), so it needs no activation delay;
++                            // the delay only filters out short steering corrections
++                            const float activation_delay = from_gps ? 0.0f : ACTIVATION_DELAY;
  
                              bool currently_turning = (current_turn_direction != 0);
                              bool direction_changed = (current_turn_direction != state.last_turn_direction &&
+@@ -706,7 +892,7 @@ public:
+                             {
+                                 state.turn_start_timer += 1000.0f * Natives::Timestep();
+ 
+-                                if (state.turn_start_timer >= ACTIVATION_DELAY && !state.blinkers_active)
++                                if (state.turn_start_timer >= activation_delay && !state.blinkers_active)
+                                 {
+                                     state.current_blinker = current_turn_direction;
+                                     state.blinkers_active = true;
 diff --git a/data/plugins/GTAIV.EFLC.FusionFix.ini b/data/plugins/GTAIV.EFLC.FusionFix.ini
 --- a/data/plugins/GTAIV.EFLC.FusionFix.ini
 +++ b/data/plugins/GTAIV.EFLC.FusionFix.ini
