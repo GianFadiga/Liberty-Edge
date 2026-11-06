@@ -13,7 +13,28 @@ env:
   MINHOOK_REF: v1.3.4
 
 jobs:
+  grass:
+    # LibertyEdge.Grass (based on Proper Grass by paulopatine, MIT) is mingw code: cross-compiled on Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v7
+    - name: Install mingw-w64
+      timeout-minutes: 8
+      run: sudo apt-get -o Acquire::Retries=3 update && sudo apt-get -o Acquire::Retries=3 install -y g++-mingw-w64-i686
+    - name: Build LibertyEdge.Grass.asi
+      run: |
+        mkdir -p out
+        # -mstackrealign: the game (x87 build) calls the hooks with any stack alignment (see upstream build.sh)
+        i686-w64-mingw32-g++ -std=c++17 -O2 -mstackrealign -Wno-multichar -shared -static -s -o out/LibertyEdge.Grass.asi grass/src/ProperGrass.cpp
+        sha256sum out/LibertyEdge.Grass.asi
+    - uses: actions/upload-artifact@v7
+      with:
+        name: grass
+        path: out/LibertyEdge.Grass.asi
+
   build:
+    needs: grass
     runs-on: windows-2025-vs2026
     steps:
     - uses: actions/checkout@v7
@@ -38,12 +59,19 @@ jobs:
         if errorlevel 1 exit /b 1
         dumpbin /headers out\LibertyEdge.ResolutionUnlock.asi | findstr /I machine
 
+    - uses: actions/download-artifact@v7
+      with:
+        name: grass
+        path: grassout
+
     - name: Package
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path pkg/plugins | Out-Null
+        New-Item -ItemType Directory -Force -Path pkg/plugins, pkg/licenses | Out-Null
         Copy-Item out/LibertyEdge.ResolutionUnlock.asi pkg/plugins/
         Copy-Item LibertyEdge.ResolutionUnlock.ini pkg/plugins/
+        Copy-Item grassout/LibertyEdge.Grass.asi, grass/LibertyEdge.Grass.ini pkg/plugins/
+        Copy-Item grass/LICENSE pkg/licenses/LibertyEdge.Grass-ProperGrass-LICENSE.txt
         Copy-Item README.md, LICENSE pkg/
         Compress-Archive -Path pkg/* -DestinationPath LibertyEdge.ResolutionUnlock.zip
         Get-FileHash out/LibertyEdge.ResolutionUnlock.asi | Format-List

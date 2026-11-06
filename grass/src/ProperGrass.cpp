@@ -3,6 +3,7 @@
 // Target: GTAIV.exe 1.2.0.59 (Complete Edition). Loaded as an .asi plugin (FusionFix / Ultimate ASI Loader).
 // Build: i686-w64-mingw32-g++ -std=c++17 -O2 -mstackrealign -shared -static -s src/ProperGrass.cpp -o GTAIV.ProperGrass.asi (see build.sh)
 #define PROPERGRASS_VERSION "1.2.1"
+#define LEGRASS_VERSION "1.0"      // LibertyEdge.Grass: Proper Grass 1.2.1 + streaming keep-alive, draw checks and crash guard
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <d3d9.h>
@@ -21,7 +22,7 @@
 
 // ---------------------------------------------------------------- config / log
 static struct {
-    int enabled = 1, triCapacity = 16384, maxInstances = 60000, debug = 0, grassTag = 0, profile = 0, toggleKey = 0, frustumCull = 1, cullKey = 0, grassMaterialFix = 1, dumpProcedural = 0, instanceProps = 1;
+    int enabled = 1, triCapacity = 16384, maxInstances = 60000, debug = 0, grassTag = 0, profile = 0, toggleKey = 0, frustumCull = 1, cullKey = 0, grassMaterialFix = 1, dumpProcedural = 0, instanceProps = 1, crashGuard = 1;
     float drawDistance = 0.f;      // 0 = use the game's plant radius
     float densityMul = 1.f, radiusMul = 1.f, plantScale = 1.f, slopeAlign = 1.f;
     float normalTilt = 0.f; float edgeMargin = 0.5f, edgeSoft = 1.0f, fadeWidth = 12.f;
@@ -337,6 +338,9 @@ static bool ModelResident(int m) {
 static int GrassTagFor(int mat);
 static std::unordered_map<std::string, int> g_tagNum;
 static LONG g_failFrame[4096];
+static volatile LONG g_lastReal[4096];          // GetTickCount of the last candidate of a model left as a real game entity (layer 1)
+static volatile LONG g_keepAlive = 0, g_guardHits = 0, g_drawSkips = 0;
+static const DWORD kKeepAliveMs = 250;
 static uint8_t g_mstate[4096];   // 0 unknown (game entities + probing), 1 instancing OK (candidates suppressed), 2 gave up
 static int g_mtries[4096];
 static int g_tableChecked = 0;   // 0 unknown, 1 ok, -1 mismatch
@@ -384,7 +388,18 @@ static void hCandAddImpl(void* mgr, void* edx, const float* pos, const float* nr
         if (model >= 0 && model < 4096 && g_mstate[model] != 1) { std::lock_guard<std::mutex> l(g_instMx); g_seenModels.insert(model); }
         static LONG s_pass[4096];
         if (cfg.grassMaterialFix && g_mode != 1 && SpotCovered((uintptr_t)tri, pos)) { if (idx < 256) InterlockedIncrement(&g_itemSupp[idx]); return; }      // under a road: neither an instance nor a game entity
-        bool doSupp = false; if (g_mode == 0 && model >= 0 && model < 4096 && g_mstate[model] != 2 && ModelResident(model)) { LONG pc = InterlockedIncrement(&s_pass[model]); doSupp = (pc & 31) != 0; /* 1 in 32 stays a real game entity: keeps the model referenced/streamed in */ }
+        // Layer 1 (keep-alive): a model drawn by instancing is only kept in memory by the game entities that still use it.
+        // Upstream kept 1 candidate in 32 as a real entity; a model with fewer candidates in range (rare plants, litter,
+        // or everything when moving fast on a bike) then had none, the game streamed it out and the instanced draw read
+        // freed memory. Now the first candidate of a model, and one at least every KeepAliveMs, also stays a real entity.
+        bool doSupp = false;
+        if (g_mode == 0 && model >= 0 && model < 4096 && g_mstate[model] != 2 && ModelResident(model)) {
+            LONG pc = InterlockedIncrement(&s_pass[model]);
+            DWORD now = GetTickCount(), last = (DWORD)g_lastReal[model];
+            bool keep = (pc & 31) == 0 || last == 0 || now - last > kKeepAliveMs;
+            if (keep) { InterlockedExchange(&g_lastReal[model], (LONG)(now ? now : 1)); InterlockedIncrement(&g_keepAlive); }
+            doSupp = !keep;
+        }
         if (doSupp) {
             if (idx < 256) InterlockedIncrement(&g_itemSupp[idx]);
             float rotMin = *(float*)(it + 0x14), rotMax = *(float*)(it + 0x18);
@@ -708,7 +723,7 @@ static IDirect3DVertexShader9* GetPatchedVS(IDirect3DVertexShader9* vs)
                     bin->Release();
                 } else Log("assemble failed hr=%08x: %s", (unsigned)hr, err ? (const char*)err->GetBufferPointer() : "?");
                 if (err) err->Release();
-            } else { DBG("VS %p not patchable", vs); static int dumped = 0; if (cfg.debug && dumped < 6) { dumped++; FILE* f = fopen("ProperGrass.vs.txt", "a"); if (f) { fprintf(f, "==== %p\n%s\n", vs, src.c_str()); fclose(f); } } }
+            } else { DBG("VS %p not patchable", vs); static int dumped = 0; if (cfg.debug && dumped < 6) { dumped++; FILE* f = fopen("LibertyEdge.Grass.vs.txt", "a"); if (f) { fprintf(f, "==== %p\n%s\n", vs, src.c_str()); fclose(f); } } }
         }
     }
     g_vsCache[vs] = p; DBG("VS %p -> patched %p (%s)", vs, p.vs, p.failed ? "FAILED" : "ok");
@@ -967,7 +982,7 @@ static void AppendMarker(Packet* pk)
 static const float kIdentity[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
 // The game's entity draw command only uses 0x38 bytes, but ZMenu detours its constructor and writes a matrix up to +0x70:
 // keep a wide margin or that overflows the heap block.
-struct SampleDc { alignas(16) uint8_t mem[0x100] = {}; bool made = false; };
+struct SampleDc { alignas(16) uint8_t mem[0x100] = {}; bool made = false; uintptr_t drawable = 0; };      // drawable: the model's drawable the command was built for
 static std::unordered_map<int, SampleDc*> g_samples;
 
 static Packet* g_curPacket;               // set by the marker command (render thread)
@@ -986,13 +1001,14 @@ static uint8_t g_ambB32 = 255, g_ambB33 = 254;
 static float g_goodDist = 4.0f; static long g_dbgAttempts = 0, g_dbgAnyDip = 0, g_dbgFailed = 0, g_dbgUploadFail = 0;
 // The game's drawable draw (vtable +0x20; one small wrapper per build, see the byte signatures below) walks the mesh list at drawable+0x40. A drawable
 // without that list (some props have no detail-level mesh list) makes the game read a null pointer. Returns false if the model would do that.
-static bool DrawableDrawable(int model)
+static bool DrawableDrawable(int model, uintptr_t* outDrawable = nullptr)
 {
     uintptr_t mi, a, d = 0, vt, fn, lst;
     if (!Rd(A(G.ModelInfoTable) + model * 4, &mi) || !mi || !Rd(mi + 8, &a)) return false;
     if (a) { if (!Rd(a + 0xB4, &d)) return false; }
     else { uintptr_t q; if (!Rd(mi + 0xC, &q) || !q || !Rd(q, &d)) return false; }
     if (!d || !Rd(d, &vt) || !vt || !Rd(vt + 0x20, &fn) || !fn || IsBadReadPtr((void*)fn, 7)) return false;
+    if (outDrawable) *outDrawable = d;
     // the same wrapper as the compiler emitted it in each build: 1.2.0.59 / Complete Edition and 1.0.8.0
     static const BYTE wrapCE[7] = { 0xFF, 0x74, 0x24, 0x10, 0x83, 0xC1, 0x10 };
     static const BYTE wrap1080[13] = { 0x8B, 0x44, 0x24, 0x10, 0x8B, 0x54, 0x24, 0x08, 0x56, 0x8B, 0x74, 0x24, 0x10 };
@@ -1003,10 +1019,18 @@ static bool DrawableDrawable(int model)
 static int SampleAttempt(int model, int dirChoice, int bucket, float dist = 4.0f)
 {
     if (model < 0 || model >= 4096) return 0;
-    if (!DrawableDrawable(model)) return -2;
+    uintptr_t drawable = 0;
+    if (!DrawableDrawable(model, &drawable)) return -2;
     SampleDc*& sd = g_samples[model];
     // mingw's operator new only guarantees 8-byte alignment, ignoring alignas(16); the game's entity code (and plugins hooking it, e.g. ZMenu) copy matrices with movaps
     if (!sd) sd = new (_aligned_malloc(sizeof(SampleDc), 16)) SampleDc();
+    // The game streams models out and back in as the player moves; the reloaded model gets a new drawable. A sample
+    // command built for the previous one would draw from freed memory (seen as a crash in the game's entity draw while
+    // driving through the city), so it is rebuilt for the current drawable.
+    if (sd->made && sd->drawable != drawable) {
+        memset(sd->mem, 0, sizeof sd->mem); sd->made = false;
+        static int rebuilt = 0; if (rebuilt < 20) { rebuilt++; Log("model %d (%s): reloaded by the game -> sample command rebuilt", model, g_mname[model & 4095]); }
+    }
     const float* camp = (const float*)A(G.CamPos);
     const float* rows = (const float*)A(G.CamRows());
     int axis = dirChoice >> 1; float sg = (dirChoice & 1) ? 1.f : -1.f;
@@ -1018,7 +1042,7 @@ static int SampleAttempt(int model, int dirChoice, int bucket, float dist = 4.0f
     if (!sd->made) {
         g_ownCtor = true;
         ((DcEntityCtor_t)A(G.DcEntityCtor))(sd->mem, nullptr, model, g_ambB32, g_ambB33, 0, m, bucket, 0);
-        g_ownCtor = false; sd->made = true;
+        g_ownCtor = false; sd->made = true; sd->drawable = drawable;
     } else {
         memcpy(sd->mem + 0x20, &m[12], 12);
     }
@@ -1027,6 +1051,41 @@ static int SampleAttempt(int model, int dirChoice, int bucket, float dist = 4.0f
     g_batch.on = false;
     g_dbgAttempts++; g_dbgAnyDip += g_batch.anyDip; if (g_batch.failedDips) g_dbgFailed++;
     return g_batch.draws;
+}
+
+// ---------------------------------------------------------------- layer 3: crash guard
+// If the game faults while drawing a model from inside our instanced run (it read memory of a model that was being
+// streamed out), the vectored handler sends the thread back here instead of letting the game crash: that model's draw
+// is dropped, it goes back to ordinary game entities for about 2 minutes, and the fault is logged. Only faults on the
+// render thread while GuardedSample is active are handled; everything else goes to the game as before.
+static void* g_guardBuf[5];
+static volatile DWORD g_guardTid = 0;
+static volatile int g_guardModel = -1;
+static uintptr_t g_guardSeh = 0;
+static inline uintptr_t ReadSeh() { uintptr_t v; __asm__ volatile("movl %%fs:0, %0" : "=r"(v)); return v; }
+static inline void WriteSeh(uintptr_t v) { __asm__ volatile("movl %0, %%fs:0" :: "r"(v) : "memory"); }
+extern "C" void __attribute__((noinline, used)) LeGrassGuardJump() { __builtin_longjmp(g_guardBuf, 1); }
+static int GuardedSample(int model, int dirChoice, int bucket, float dist = 4.0f)
+{
+    if (!cfg.crashGuard) return SampleAttempt(model, dirChoice, bucket, dist);
+    if (__builtin_setjmp(g_guardBuf)) {
+        WriteSeh(g_guardSeh);      // the SEH chain still pointed into the abandoned game frames
+        g_guardTid = 0;
+        const int m = g_guardModel & 4095;
+        g_batch.on = false; g_ownCtor = false;
+        if (g_dev) { g_dev->SetStreamSourceFreq(0, 1); g_dev->SetStreamSourceFreq(1, 1); g_dev->SetStreamSource(1, nullptr, 0, 0); }
+        if (g_samples[m]) { memset(g_samples[m]->mem, 0, sizeof g_samples[m]->mem); g_samples[m]->made = false; g_samples[m]->drawable = 0; }
+        g_mstate[m] = 2; g_failFrame[m] = g_renderFrame + 5400;      // retried after ~1800 + 5400 frames (about 2 minutes at 60 fps)
+        LONG h = InterlockedIncrement(&g_guardHits);
+        DWORD last = (DWORD)g_lastReal[m];
+        if (h <= 50) Log("[guard] fault while drawing model %d (%s): draw dropped, model back to game entities for ~2 min (resident=%d, last kept entity %lu ms ago, hit %ld)",
+                         m, g_mname[m], (int)ModelResident(m), last ? (unsigned long)(GetTickCount() - last) : 0ul, h);
+        return -3;
+    }
+    g_guardSeh = ReadSeh(); g_guardModel = model; g_guardTid = GetCurrentThreadId();
+    int r = SampleAttempt(model, dirChoice, bucket, dist);
+    g_guardTid = 0;
+    return r;
 }
 
 static bool UploadInstances(const float* data, UINT count)
@@ -1065,7 +1124,7 @@ static void RunGroups(Packet* pk, int bucket)
         if (lite && g_goodDir >= 0) {      // only every 64th frame: uploading and drawing for a bucket the model has no meshes in is wasted work
             if (((g_renderFrame + g.model) & 63) != 0) continue;
             if (!UploadInstances(&pk->data[(size_t)g.first * 16], g.count)) { g_dbgUploadFail++; return; }
-            int dr = SampleAttempt(g.model, g_goodDir, bucket, g_goodDist);
+            int dr = GuardedSample(g.model, g_goodDir, bucket, g_goodDist);
             if (dr > 0) { g_frameDraws[g.model & 4095] += dr; g_bucketMask[g.model & 4095] |= bit; g_emptyMask[g.model & 4095] &= (uint8_t)~bit; }
             continue;
         }
@@ -1074,9 +1133,10 @@ static void RunGroups(Packet* pk, int bucket)
         int draws = 0;
         {   // the sample must sit where the game does not cull it: first try other distances along the calibrated direction (steep downward views cull the usual 4 m)
             static const float dists[5] = { 4.0f, 2.5f, 1.5f, 7.0f, 10.0f }; int first = 0; float gd = g_goodDist;
-            for (int k = 0; k < 5 && draws <= 0; k++) { float d = k == 0 ? gd : dists[k - 1 < 0 ? 0 : k - 1]; if (k > 0 && d == gd) continue; draws = SampleAttempt(g.model, order[0], bucket, d); if (draws > 0) g_goodDist = d; (void)first; }
+            for (int k = 0; k < 5 && draws <= 0 && draws != -3; k++) { float d = k == 0 ? gd : dists[k - 1 < 0 ? 0 : k - 1]; if (k > 0 && d == gd) continue; draws = GuardedSample(g.model, order[0], bucket, d); if (draws > 0) g_goodDist = d; (void)first; }
         }
-        for (int a = 0; a < n && draws <= 0; a++) { draws = SampleAttempt(g.model, order[a], bucket); if (draws > 0 && g_goodDir != order[a]) { g_goodDir = order[a]; g_goodDirPub = g_goodDir; Log("sample direction re-calibrated to %d", g_goodDir); } }
+        for (int a = 0; a < n && draws <= 0 && draws != -3; a++) { draws = GuardedSample(g.model, order[a], bucket); if (draws > 0 && g_goodDir != order[a]) { g_goodDir = order[a]; g_goodDirPub = g_goodDir; Log("sample direction re-calibrated to %d", g_goodDir); } }
+        if (draws == -3) continue;      // the crash guard dropped this model
         if (draws > 0) { g_frameDraws[g.model & 4095] += draws; g_bucketMask[g.model & 4095] |= bit; g_emptyMask[g.model & 4095] &= (uint8_t)~bit; }
         else if (draws == 0 && !(g_bucketMask[g.model & 4095] & bit)) g_emptyMask[g.model & 4095] |= bit;
         else if (draws < 0) { g_mstate[g.model & 4095] = 2; g_failFrame[g.model & 4095] = (LONG)g_renderFrame; Log("model %d (%s): a mesh cannot be instanced -> back to game entities", g.model, g_mname[g.model & 4095]); continue; }
@@ -1090,7 +1150,8 @@ static void RunGroups(Packet* pk, int bucket)
         for (int k = 0; k < 4 && k < (int)unknown.size(); k++) {
             int m = unknown[(rr++) % unknown.size()];
             int dir = g_goodDir >= 0 ? g_goodDir : (g_mtries[m] % 6);
-            int draws = SampleAttempt(m, dir, bucket);
+            int draws = GuardedSample(m, dir, bucket);
+            if (draws == -3) continue;
             if (draws == -2) { static uint8_t noList[4096]; g_mstate[m] = 2; g_failFrame[m] = (LONG)g_renderFrame - 1740;      // the list appears once the model has streamed in: try again after ~60 frames (cheap, nothing is drawn)
                  if (noList[m] < 255) noList[m]++; if (noList[m] <= 3) Log("model %d (%s): drawable has no mesh list -> staying on game entities", m, g_mname[m]); continue; }
             if (g_batch.failedDips && draws > 0) draws = 0;      // a model is only confirmed when ALL its meshes instance cleanly
@@ -1348,7 +1409,7 @@ static void WriteProceduralDump()
 {
     FILE* f = fopen(g_dumpPath.c_str(), "w"); if (!f) return;
     uint32_t n = *(uint32_t*)A(G.ItemCount);
-    fprintf(f, "# ProperGrass " PROPERGRASS_VERSION " procedural dump, game %s, uptime %lu s\n", G.name, (unsigned long)(GetTickCount() / 1000));
+    fprintf(f, "# LibertyEdge.Grass " LEGRASS_VERSION " (Proper Grass " PROPERGRASS_VERSION ") procedural dump, game %s, uptime %lu s\n", G.name, (unsigned long)(GetTickCount() / 1000));
     fprintf(f, "# items in game table: %u, parsed from procedural.dat: %zu, table check: %d\n", n, g_items.size(), g_tableChecked);
     fprintf(f, "# columns: idx tagNum tag model(modelinfo index) name class spacing invDensity distGate2 align grid seed flags rot[min,max] scale[min,max] size[min,max] zoff[min,max] resident state seen suppressed draws(total instanced draw calls since start)\n");
     fprintf(f, "# class: VEG = plant (instanced, DensityMultiplier/PlantScale apply); PROP = litter/rocks/etc. (instanced, InstanceProps=1); OTHER = left to the game (floating items)\n");
@@ -1557,14 +1618,14 @@ static void ModOff(const void* a, char* out, size_t n)
     const char* b = strrchr(path, '\\'); b = b ? b + 1 : path;
     snprintf(out, n, "%s+0x%x", b, (unsigned)((uintptr_t)a - (uintptr_t)m));
 }
-static LONG WINAPI VehLog(EXCEPTION_POINTERS* ep)
+static void VehLogBody(EXCEPTION_POINTERS* ep)
 {
     const DWORD c = ep->ExceptionRecord->ExceptionCode;
-    if (c != EXCEPTION_ACCESS_VIOLATION && c != EXCEPTION_ILLEGAL_INSTRUCTION && c != EXCEPTION_STACK_OVERFLOW && c != EXCEPTION_INT_DIVIDE_BY_ZERO && c != EXCEPTION_PRIV_INSTRUCTION && c != EXCEPTION_IN_PAGE_ERROR) return EXCEPTION_CONTINUE_SEARCH;
+    if (c != EXCEPTION_ACCESS_VIOLATION && c != EXCEPTION_ILLEGAL_INSTRUCTION && c != EXCEPTION_STACK_OVERFLOW && c != EXCEPTION_INT_DIVIDE_BY_ZERO && c != EXCEPTION_PRIV_INSTRUCTION && c != EXCEPTION_IN_PAGE_ERROR) return;
     static volatile LONG n = 0; static void* seen[64]; static thread_local bool busy = false;
-    if (busy || n >= 40) return EXCEPTION_CONTINUE_SEARCH;
+    if (busy || n >= 40) return;
     void* a = ep->ExceptionRecord->ExceptionAddress;
-    for (int i = 0; i < 64 && i < n; i++) if (seen[i] == a) return EXCEPTION_CONTINUE_SEARCH;      // same fault site: log once
+    for (int i = 0; i < 64 && i < n; i++) if (seen[i] == a) return;      // same fault site: log once
     LONG k = InterlockedIncrement(&n) - 1; if (k < 64) seen[k] = a;
     busy = true;
     char where[160]; ModOff(a, where, sizeof where);
@@ -1578,6 +1639,18 @@ static LONG WINAPI VehLog(EXCEPTION_POINTERS* ep)
         uintptr_t nb = ((uintptr_t*)bp)[0]; if (nb <= bp) break; bp = nb;
     }
     busy = false;
+    return;
+}
+static LONG WINAPI VehLog(EXCEPTION_POINTERS* ep)
+{
+    const DWORD c = ep->ExceptionRecord->ExceptionCode;
+    VehLogBody(ep);
+    if (cfg.crashGuard && g_guardTid && g_guardTid == GetCurrentThreadId() &&
+        (c == EXCEPTION_ACCESS_VIOLATION || c == EXCEPTION_ILLEGAL_INSTRUCTION || c == EXCEPTION_PRIV_INSTRUCTION || c == EXCEPTION_INT_DIVIDE_BY_ZERO || c == EXCEPTION_IN_PAGE_ERROR)) {
+        g_guardTid = 0;
+        ep->ContextRecord->Eip = (DWORD)(uintptr_t)&LeGrassGuardJump;      // resume in GuardedSample (layer 3)
+        return EXCEPTION_CONTINUE_EXECUTION;
+    }
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -1592,8 +1665,14 @@ static DWORD WINAPI InitThread(LPVOID)
     char selfPath[MAX_PATH] = ""; GetModuleFileNameA(g_self, selfPath, MAX_PATH);
     { char* ss = strrchr(selfPath, '\\'); if (ss) *ss = 0; else strcpy(selfPath, path); }
     std::string modDir = selfPath;
-    g_log = fopen((modDir + "\\ProperGrass.log").c_str(), "w");
-    std::string ini = modDir + "\\ProperGrass.ini";
+    g_log = fopen((modDir + "\\LibertyEdge.Grass.log").c_str(), "w");
+    std::string ini = modDir + "\\LibertyEdge.Grass.ini";
+    // The original Proper Grass and this build hook the same game functions: running both breaks the grass or crashes
+    {
+        bool other = GetModuleHandleA("GTAIV.ProperGrass.asi") != nullptr || GetFileAttributesA((modDir + "\\GTAIV.ProperGrass.asi").c_str()) != INVALID_FILE_ATTRIBUTES
+                  || GetFileAttributesA((dir + "\\GTAIV.ProperGrass.asi").c_str()) != INVALID_FILE_ATTRIBUTES;
+        if (other) { Log("LibertyEdge.Grass " LEGRASS_VERSION ": the original Proper Grass (GTAIV.ProperGrass.asi) is installed - disabled. Remove GTAIV.ProperGrass.asi to use this one."); return 0; }
+    }
     AddVectoredExceptionHandler(1, VehLog);
     cfg.enabled = GetPrivateProfileIntA("Main", "Enabled", 1, ini.c_str());
     cfg.triCapacity = GetPrivateProfileIntA("Main", "TriCapacity", 16384, ini.c_str());
@@ -1615,14 +1694,15 @@ static DWORD WINAPI InitThread(LPVOID)
     }
     GetPrivateProfileStringA("Main", "RadiusMultiplier", "1.5", buf, 32, ini.c_str()); cfg.radiusMul = (float)atof(buf);
     cfg.dumpProcedural = GetPrivateProfileIntA("Main", "DumpProcedural", 0, ini.c_str());
-    if (cfg.dumpProcedural) g_dumpPath = modDir + "\\ProperGrass.procedural.txt";
+    if (cfg.dumpProcedural) g_dumpPath = modDir + "\\LibertyEdge.Grass.procedural.txt";
+    cfg.crashGuard = GetPrivateProfileIntA("Main", "CrashGuard", 1, ini.c_str());
     cfg.instanceProps = GetPrivateProfileIntA("Main", "InstanceProps", 1, ini.c_str());
     cfg.profile = GetPrivateProfileIntA("Main", "Profile", 0, ini.c_str());
     cfg.frustumCull = GetPrivateProfileIntA("Main", "FrustumCull", 1, ini.c_str());
     GetPrivateProfileStringA("Main", "CullKey", "0", buf, 32, ini.c_str()); cfg.cullKey = (int)strtol(buf, nullptr, 0);
     GetPrivateProfileStringA("Main", "ToggleKey", "0", buf, 32, ini.c_str()); cfg.toggleKey = (int)strtol(buf, nullptr, 0);
     QueryPerformanceFrequency(&g_qpf);
-    Log("ProperGrass " PROPERGRASS_VERSION " starting (enabled=%d tri=%d maxInst=%d density=%.2f radius=%.2f scale=%.2f slope=%.2f)", cfg.enabled, cfg.triCapacity, cfg.maxInstances, cfg.densityMul, cfg.radiusMul, cfg.plantScale, cfg.slopeAlign);
+    Log("LibertyEdge.Grass " LEGRASS_VERSION " (Proper Grass " PROPERGRASS_VERSION " by paulopatine, MIT) starting (enabled=%d tri=%d maxInst=%d density=%.2f radius=%.2f scale=%.2f slope=%.2f props=%d crashGuard=%d)", cfg.enabled, cfg.triCapacity, cfg.maxInstances, cfg.densityMul, cfg.radiusMul, cfg.plantScale, cfg.slopeAlign, cfg.instanceProps, cfg.crashGuard);
     if (!cfg.enabled) return 0;
 
     // identity check: which executable is this?

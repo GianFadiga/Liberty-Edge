@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.9"
+#define LE_VERSION "1.10"
 
 namespace
 {
@@ -510,6 +510,10 @@ namespace
         ScanDir(L"plugins\\", L"*.asi", false, true, v);
         ScanDir(L"", L"*.asi", false, true, v);
         ScanDir(L"scripts\\", L"*.asi", false, true, v);
+        // LibertyEdge.Grass turns itself off when the original Proper Grass is installed too (both replace the grass)
+        auto has = [&](const wchar_t* f) { return GetFileAttributesW((gDir + L"plugins\\" + f).c_str()) != INVALID_FILE_ATTRIBUTES || GetFileAttributesW((gDir + f).c_str()) != INVALID_FILE_ATTRIBUTES; };
+        if (has(L"LibertyEdge.Grass.asi") && has(L"GTAIV.ProperGrass.asi"))
+            for (auto& l : v) if (l.find(L"LibertyEdge.Grass.asi") != std::wstring::npos) l += L"   (off: remove GTAIV.ProperGrass.asi)";
         gModLines.push_back(L"ASI plugins: " + std::to_wstring(v.size()));
         gModLines.insert(gModLines.end(), v.begin(), v.end());
         v.clear();
