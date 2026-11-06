@@ -24,10 +24,12 @@
 #include <algorithm>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
+#include <tlhelp32.h>
+#include <dbghelp.h>
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.10"
+#define LE_VERSION "1.11"
 
 namespace
 {
@@ -169,6 +171,159 @@ namespace
         fprintf(f, "  (first-chance: the game may still have handled it)\n");
         fclose(f);
         return EXCEPTION_CONTINUE_SEARCH;
+    }
+
+    // ---------------------------------------------------------------- hang report
+    // A freeze leaves no crash log. With Log = 1 a watchdog thread notices when the game stops presenting frames for
+    // 12 s while it is in front (or when Ctrl+Alt+D is pressed) and writes LibertyEdge.ResolutionUnlock.hang.log: where
+    // every thread of the game is (module + offset, plus return addresses on its stack), twice, 8 s apart, so a wait can
+    // be told from a loop. It also writes LibertyEdge.ResolutionUnlock.hang.dmp (a minidump) for a closer look.
+    // While a thread is suspended nothing that could need a lock it holds (heap, loader, files) is called.
+    volatile DWORD gLastPresent = 0; // GetTickCount of the last frame (32 bits: read and written in one piece)
+
+    struct ModRange { DWORD_PTR base, end; wchar_t name[64]; };
+
+    bool GameInFront()
+    {
+        DWORD pid = 0; HWND fg = GetForegroundWindow();
+        GetWindowThreadProcessId(fg, &pid);
+        return pid == GetCurrentProcessId() && !IsIconic(fg);
+    }
+
+    const ModRange* FindMod(const std::vector<ModRange>& mods, DWORD_PTR v)
+    {
+        for (auto& m : mods) if (v >= m.base && v < m.end) return &m;
+        return nullptr;
+    }
+
+    bool LooksLikeReturn(DWORD_PTR v)
+    {
+        // the bytes before a return address are a call: E8 rel32, FF /2 (2, 3, 6 or 7 bytes)
+        __try
+        {
+            const BYTE* b = (const BYTE*)v;
+            if (b[-5] == 0xE8) return true;
+            if (b[-2] == 0xFF && (b[-1] & 0x38) == 0x10) return true;
+            if (b[-3] == 0xFF && (b[-2] & 0x38) == 0x10) return true;
+            if (b[-6] == 0xFF && (b[-5] & 0x38) == 0x10) return true;
+            if (b[-7] == 0xFF && (b[-6] & 0x38) == 0x10) return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {}
+        return false;
+    }
+
+    DWORD CopyStack(DWORD_PTR sp, DWORD_PTR* out, DWORD maxWords)
+    {
+        DWORD n = 0;
+        __try { for (; n < maxWords; n++) out[n] = ((const DWORD_PTR*)sp)[n]; }
+        __except (EXCEPTION_EXECUTE_HANDLER) {}
+        return n;
+    }
+
+    void HangSnapshot(FILE* f, const char* label)
+    {
+        std::vector<ModRange> mods;
+        HANDLE ms = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, GetCurrentProcessId());
+        if (ms != INVALID_HANDLE_VALUE)
+        {
+            MODULEENTRY32W me = { sizeof(me) };
+            for (BOOL ok = Module32FirstW(ms, &me); ok; ok = Module32NextW(ms, &me))
+            {
+                ModRange r = { (DWORD_PTR)me.modBaseAddr, (DWORD_PTR)me.modBaseAddr + me.modBaseSize, {} };
+                wcsncpy_s(r.name, me.szModule, _TRUNCATE);
+                mods.push_back(r);
+            }
+            CloseHandle(ms);
+        }
+        std::vector<DWORD> tids;
+        HANDLE ts = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+        if (ts != INVALID_HANDLE_VALUE)
+        {
+            THREADENTRY32 te = { sizeof(te) };
+            for (BOOL ok = Thread32First(ts, &te); ok; ok = Thread32Next(ts, &te))
+                if (te.th32OwnerProcessID == GetCurrentProcessId() && te.th32ThreadID != GetCurrentThreadId()) tids.push_back(te.th32ThreadID);
+            CloseHandle(ts);
+        }
+        DWORD mainTid = gWnd ? GetWindowThreadProcessId(gWnd, nullptr) : 0;
+        static DWORD_PTR stack[4096];
+        fprintf(f, "%s: %u threads, last frame %lu ms ago\n", label, (unsigned)tids.size(), (unsigned long)(GetTickCount() - gLastPresent));
+        for (DWORD tid : tids)
+        {
+            HANDLE h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE, tid);
+            if (!h) continue;
+            CONTEXT c = {}; c.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+            DWORD words = 0; bool got = false;
+            if (SuspendThread(h) != (DWORD)-1)
+            {
+                got = GetThreadContext(h, &c) != 0;
+#ifdef _M_IX86
+                if (got) words = CopyStack(c.Esp, stack, 4096);
+#endif
+                ResumeThread(h);
+            }
+            CloseHandle(h);
+            if (!got) continue;
+#ifdef _M_IX86
+            const ModRange* m = FindMod(mods, c.Eip);
+            // threads idling in the system (waiting on nothing of the game's) are listed in one line
+            fprintf(f, "  thread %lu%s: eip %ls+0x%lX  eax=%08lX ecx=%08lX edx=%08lX esi=%08lX edi=%08lX\n", tid, tid == mainTid ? " (window thread)" : "",
+                m ? m->name : L"?", (unsigned long)(m ? c.Eip - m->base : c.Eip), c.Eax, c.Ecx, c.Edx, c.Esi, c.Edi);
+            int found = 0;
+            for (DWORD i = 0; i < words && found < 24; i++)
+            {
+                const ModRange* r = FindMod(mods, stack[i]);
+                if (!r || !LooksLikeReturn(stack[i])) continue;
+                fprintf(f, "      %ls+0x%lX\n", r->name, (unsigned long)(stack[i] - r->base));
+                found++;
+            }
+#endif
+        }
+        fflush(f);
+    }
+
+    using MiniDumpWriteDump_t = BOOL(WINAPI*)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
+
+    void HangReport(const char* why, MiniDumpWriteDump_t dump)
+    {
+        FILE* f = nullptr;
+        if (_wfopen_s(&f, (gDir + L"LibertyEdge.ResolutionUnlock.hang.log").c_str(), L"a") != 0 || !f) return;
+        SYSTEMTIME t; GetLocalTime(&t);
+        fprintf(f, "%04u-%02u-%02u %02u:%02u:%02u  %s (Liberty Edge %s, backbuffer %ux%u)\n", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond, why, LE_VERSION, gBackW, gBackH);
+        HangSnapshot(f, "snapshot 1");
+        if (dump)
+        {
+            HANDLE df = CreateFileW((gDir + L"LibertyEdge.ResolutionUnlock.hang.dmp").c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (df != INVALID_HANDLE_VALUE)
+            {
+                BOOL ok = dump(GetCurrentProcess(), GetCurrentProcessId(), df,
+                    (MINIDUMP_TYPE)(MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules | MiniDumpWithIndirectlyReferencedMemory | MiniDumpScanMemory), nullptr, nullptr, nullptr);
+                CloseHandle(df);
+                fprintf(f, "minidump: %s\n", ok ? "LibertyEdge.ResolutionUnlock.hang.dmp" : "failed");
+            }
+        }
+        Sleep(8000);
+        HangSnapshot(f, "snapshot 2 (8 s later)");
+        fprintf(f, "\n");
+        fclose(f);
+    }
+
+    DWORD WINAPI HangWatch(LPVOID)
+    {
+        HMODULE dbg = LoadLibraryW(L"dbghelp.dll");
+        auto dump = dbg ? (MiniDumpWriteDump_t)GetProcAddress(dbg, "MiniDumpWriteDump") : nullptr;
+        bool reported = false, keyDown = false;
+        for (;;)
+        {
+            Sleep(500);
+            bool key = (GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_MENU) & 0x8000) && (GetAsyncKeyState('D') & 0x8000);
+            if (key && !keyDown && GameInFront()) { keyDown = true; HangReport("Ctrl+Alt+D pressed", dump); continue; }
+            keyDown = key;
+            DWORD last = gLastPresent;
+            if (!last) continue;
+            DWORD idle = GetTickCount() - last;
+            if (idle < 12000) { reported = false; continue; }
+            if (!reported && GameInFront()) { reported = true; HangReport("no frame for 12 s with the game in front", dump); }
+        }
     }
 
     void* PatchVtbl(void* obj, int idx, void* fn)
@@ -858,7 +1013,10 @@ namespace
         if (SUCCEEDED(sc->GetDevice(&dev)) && dev)
         {
             if (!gGameDev || dev == gGameDev)
+            {
+                gLastPresent = GetTickCount() | 1;
                 PerFrame(dev, wnd, "IDirect3DSwapChain9::Present");
+            }
             dev->Release();
         }
         gInSCPresent = true;
@@ -869,7 +1027,7 @@ namespace
 
     HRESULT WINAPI hkPresent(IDirect3DDevice9* dev, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty)
     {
-        if (!gInSCPresent && (!gGameDev || dev == gGameDev)) PerFrame(dev, wnd, "IDirect3DDevice9::Present");
+        if (!gInSCPresent && (!gGameDev || dev == gGameDev)) { gLastPresent = GetTickCount() | 1; PerFrame(dev, wnd, "IDirect3DDevice9::Present"); }
         return oPresent(dev, src, dst, wnd, dirty);
     }
 
@@ -945,7 +1103,10 @@ namespace
     {
         LoadSettings(self);
         if (cfg.log)
+        {
             AddVectoredExceptionHandler(0, &CrashHandler);
+            if (HANDLE h = CreateThread(nullptr, 0, &HangWatch, nullptr, 0, nullptr)) CloseHandle(h);
+        }
         if (!cfg.enabled) { Log("disabled in the ini"); return; }
         if (MH_Initialize() != MH_OK) { Log("MinHook init failed"); return; }
         if (!GetModuleHandleW(L"d3d9.dll")) LoadLibraryW(L"d3d9.dll");
