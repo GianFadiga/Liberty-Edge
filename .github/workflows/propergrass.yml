@@ -15,12 +15,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          path: le
       - run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-i686
       - run: |
           git clone https://github.com/paulopatine/GTAIV.ProperGrass pg
           cd pg
           git checkout "$PG_COMMIT"
-          for p in ../contrib/propergrass-*.patch; do [ -e "$p" ] && git apply "$p" && echo "applied $p"; done
+          for p in ../le/contrib/propergrass-*.patch; do git apply "$p"; echo "applied $p"; done
+          grep -q "sample command rebuilt" src/ProperGrass.cpp
           ./build.sh
           test -s build/GTAIV.ProperGrass.asi
           mkdir -p ../out/plugins && cp build/GTAIV.ProperGrass.asi release/ProperGrass.ini ../out/plugins/ && cp LICENSE README.md ../out/
