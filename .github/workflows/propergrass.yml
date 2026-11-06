@@ -1,9 +1,10 @@
 # Builds paulopatine's Proper Grass (MIT, https://github.com/paulopatine/GTAIV.ProperGrass) from a pinned commit,
-# for the recommended setup. The author ships binaries on Nexus only (mod 1660); this is the same source, unmodified.
+# for the recommended setup. The author ships binaries on Nexus only (mod 1660). contrib/propergrass-*.patch are fixes
+# proposed to the author (applied on top, listed in the release notes).
 name: Proper Grass (third-party build)
 on:
   push:
-    paths: [ .github/workflows/propergrass.yml ]
+    paths: [ .github/workflows/propergrass.yml, contrib/propergrass-*.patch ]
   workflow_dispatch:
 permissions:
   contents: write
@@ -19,6 +20,7 @@ jobs:
           git clone https://github.com/paulopatine/GTAIV.ProperGrass pg
           cd pg
           git checkout "$PG_COMMIT"
+          for p in ../contrib/propergrass-*.patch; do [ -e "$p" ] && git apply "$p" && echo "applied $p"; done
           ./build.sh
           test -s build/GTAIV.ProperGrass.asi
           mkdir -p ../out/plugins && cp build/GTAIV.ProperGrass.asi release/ProperGrass.ini ../out/plugins/ && cp LICENSE README.md ../out/
@@ -28,4 +30,4 @@ jobs:
         run: |
           gh release delete "$TAG" -R "$GITHUB_REPOSITORY" -y --cleanup-tag || true
           gh release create "$TAG" ProperGrass-1.2.1.zip -R "$GITHUB_REPOSITORY" --title "Proper Grass 1.2.1 (third-party build)" \
-            --notes "Unmodified build of paulopatine/GTAIV.ProperGrass at ${PG_COMMIT} (MIT). Official page: https://www.nexusmods.com/gta4/mods/1660" --prerelease
+            --notes "Build of paulopatine/GTAIV.ProperGrass at ${PG_COMMIT} (MIT) with the fixes in contrib/propergrass-*.patch (proposed to the author): sample commands are rebuilt when the game reloads a model (crash in the entity draw while driving). Official page: https://www.nexusmods.com/gta4/mods/1660" --prerelease

@@ -1,0 +1,58 @@
+diff --git a/src/ProperGrass.cpp b/src/ProperGrass.cpp
+index 73ab326..cf8e71c 100644
+--- a/src/ProperGrass.cpp
++++ b/src/ProperGrass.cpp
+@@ -967,7 +967,7 @@ static void AppendMarker(Packet* pk)
+ static const float kIdentity[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
+ // The game's entity draw command only uses 0x38 bytes, but ZMenu detours its constructor and writes a matrix up to +0x70:
+ // keep a wide margin or that overflows the heap block.
+-struct SampleDc { alignas(16) uint8_t mem[0x100] = {}; bool made = false; };
++struct SampleDc { alignas(16) uint8_t mem[0x100] = {}; bool made = false; uintptr_t drawable = 0; };      // drawable: the model's drawable the command was built for
+ static std::unordered_map<int, SampleDc*> g_samples;
+ 
+ static Packet* g_curPacket;               // set by the marker command (render thread)
+@@ -986,13 +986,14 @@ static uint8_t g_ambB32 = 255, g_ambB33 = 254;
+ static float g_goodDist = 4.0f; static long g_dbgAttempts = 0, g_dbgAnyDip = 0, g_dbgFailed = 0, g_dbgUploadFail = 0;
+ // The game's drawable draw (vtable +0x20; one small wrapper per build, see the byte signatures below) walks the mesh list at drawable+0x40. A drawable
+ // without that list (some props have no detail-level mesh list) makes the game read a null pointer. Returns false if the model would do that.
+-static bool DrawableDrawable(int model)
++static bool DrawableDrawable(int model, uintptr_t* outDrawable = nullptr)
+ {
+     uintptr_t mi, a, d = 0, vt, fn, lst;
+     if (!Rd(A(G.ModelInfoTable) + model * 4, &mi) || !mi || !Rd(mi + 8, &a)) return false;
+     if (a) { if (!Rd(a + 0xB4, &d)) return false; }
+     else { uintptr_t q; if (!Rd(mi + 0xC, &q) || !q || !Rd(q, &d)) return false; }
+     if (!d || !Rd(d, &vt) || !vt || !Rd(vt + 0x20, &fn) || !fn || IsBadReadPtr((void*)fn, 7)) return false;
++    if (outDrawable) *outDrawable = d;
+     // the same wrapper as the compiler emitted it in each build: 1.2.0.59 / Complete Edition and 1.0.8.0
+     static const BYTE wrapCE[7] = { 0xFF, 0x74, 0x24, 0x10, 0x83, 0xC1, 0x10 };
+     static const BYTE wrap1080[13] = { 0x8B, 0x44, 0x24, 0x10, 0x8B, 0x54, 0x24, 0x08, 0x56, 0x8B, 0x74, 0x24, 0x10 };
+@@ -1003,10 +1004,18 @@ static bool DrawableDrawable(int model)
+ static int SampleAttempt(int model, int dirChoice, int bucket, float dist = 4.0f)
+ {
+     if (model < 0 || model >= 4096) return 0;
+-    if (!DrawableDrawable(model)) return -2;
++    uintptr_t drawable = 0;
++    if (!DrawableDrawable(model, &drawable)) return -2;
+     SampleDc*& sd = g_samples[model];
+     // mingw's operator new only guarantees 8-byte alignment, ignoring alignas(16); the game's entity code (and plugins hooking it, e.g. ZMenu) copy matrices with movaps
+     if (!sd) sd = new (_aligned_malloc(sizeof(SampleDc), 16)) SampleDc();
++    // The game streams models out and back in as the player moves; the reloaded model gets a new drawable. A sample
++    // command built for the previous one would draw from freed memory (seen as a crash in the game's entity draw while
++    // driving through the city), so it is rebuilt for the current drawable.
++    if (sd->made && sd->drawable != drawable) {
++        memset(sd->mem, 0, sizeof sd->mem); sd->made = false;
++        static int rebuilt = 0; if (rebuilt < 20) { rebuilt++; Log("model %d (%s): reloaded by the game -> sample command rebuilt", model, g_mname[model & 4095]); }
++    }
+     const float* camp = (const float*)A(G.CamPos);
+     const float* rows = (const float*)A(G.CamRows());
+     int axis = dirChoice >> 1; float sg = (dirChoice & 1) ? 1.f : -1.f;
+@@ -1018,7 +1027,7 @@ static int SampleAttempt(int model, int dirChoice, int bucket, float dist = 4.0f
+     if (!sd->made) {
+         g_ownCtor = true;
+         ((DcEntityCtor_t)A(G.DcEntityCtor))(sd->mem, nullptr, model, g_ambB32, g_ambB33, 0, m, bucket, 0);
+-        g_ownCtor = false; sd->made = true;
++        g_ownCtor = false; sd->made = true; sd->drawable = drawable;
+     } else {
+         memcpy(sd->mem + 0x20, &m[12], 12);
+     }
