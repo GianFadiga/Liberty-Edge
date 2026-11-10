@@ -28,7 +28,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.14"
+#define LE_VERSION "1.15"
 
 namespace
 {
@@ -183,6 +183,27 @@ namespace
         VirtualProtect(&vtbl[idx], sizeof(void*), old, &old);
         return orig;
     }
+
+    // Direct3D methods are hooked in their code (MinHook), like DirectInput: FusionFix 5.2 hooks the same objects and
+    // keeps its originals per vtable or per code address, and Direct3D objects of two implementations can exist (the
+    // system's and DXVK's). One hook per method, on the first implementation the game's object uses; a method of another
+    // implementation is left alone (a single original for both sent one object's call into the other's code).
+    void HookMethod(void* obj, int idx, void* hook, void** orig, void*& target, const char* name)
+    {
+        void* code = (*(void***)obj)[idx];
+        if (target)
+        {
+            static int n = 0;
+            if (target != code && code != hook && n++ < 8) Log("%s: another implementation at %p left alone", name, code);
+            return;
+        }
+        MH_STATUS st = MH_CreateHook(code, hook, orig);
+        if (st == MH_OK) st = MH_EnableHook(code);
+        if (st == MH_OK) target = code;
+        else Log("%s: hook failed (%d)", name, (int)st);
+    }
+    void* gTgtModeCount = nullptr; void* gTgtEnumModes = nullptr; void* gTgtCreateDevice = nullptr;
+    void* gTgtReset = nullptr; void* gTgtPresent = nullptr; void* gTgtSCPresent = nullptr;
 
     bool MonitorRect(HWND w, RECT& r)
     {
@@ -918,12 +939,12 @@ namespace
         if (SUCCEEDED(hr) && out && *out)
         {
             gGameDev = *out;
-            if (auto o = PatchVtbl(*out, 16, (void*)&hkReset)) oReset = (Reset_t)o;
-            if (auto o = PatchVtbl(*out, 17, (void*)&hkPresent)) oPresent = (Present_t)o;
+            HookMethod(*out, 16, (void*)&hkReset, (void**)&oReset, gTgtReset, "IDirect3DDevice9::Reset");
+            HookMethod(*out, 17, (void*)&hkPresent, (void**)&oPresent, gTgtPresent, "IDirect3DDevice9::Present");
             IDirect3DSwapChain9* sc = nullptr;
             if (SUCCEEDED((*out)->GetSwapChain(0, &sc)) && sc)
             {
-                if (auto o = PatchVtbl(sc, 3, (void*)&hkSCPresent)) oSCPresent = (SCPresent_t)o;
+                HookMethod(sc, 3, (void*)&hkSCPresent, (void**)&oSCPresent, gTgtSCPresent, "IDirect3DSwapChain9::Present");
                 sc->Release();
             }
             Subclass();
@@ -942,9 +963,9 @@ namespace
     {
         if (d3d)
         {
-            if (auto o = PatchVtbl(d3d, 6, (void*)&hkGetAdapterModeCount)) oGetAdapterModeCount = (GetAdapterModeCount_t)o;
-            if (auto o = PatchVtbl(d3d, 7, (void*)&hkEnumAdapterModes)) oEnumAdapterModes = (EnumAdapterModes_t)o;
-            if (auto o = PatchVtbl(d3d, 16, (void*)&hkCreateDevice)) oCreateDevice = (CreateDevice_t)o;
+            HookMethod(d3d, 6, (void*)&hkGetAdapterModeCount, (void**)&oGetAdapterModeCount, gTgtModeCount, "IDirect3D9::GetAdapterModeCount");
+            HookMethod(d3d, 7, (void*)&hkEnumAdapterModes, (void**)&oEnumAdapterModes, gTgtEnumModes, "IDirect3D9::EnumAdapterModes");
+            HookMethod(d3d, 16, (void*)&hkCreateDevice, (void**)&oCreateDevice, gTgtCreateDevice, "IDirect3D9::CreateDevice");
             static bool once = false;
             if (!once) { once = true; Log("Direct3DCreate9: hooks installed"); }
         }
