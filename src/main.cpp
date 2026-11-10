@@ -22,12 +22,13 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <utility>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.13"
+#define LE_VERSION "1.14"
 
 namespace
 {
@@ -382,84 +383,91 @@ namespace
     using DIGetDeviceState_t = HRESULT(WINAPI*)(void*, DWORD, LPVOID);
     using DIGetDeviceData_t = HRESULT(WINAPI*)(void*, DWORD, LPDIDEVICEOBJECTDATA, LPDWORD, DWORD);
     DI8Create_t oDI8Create = nullptr;
-    DICreateDevice_t oDICreateDeviceA = nullptr, oDICreateDeviceW = nullptr;
-    // Keyboard, mouse and game controllers can be different classes with their own vtables, so the original
-    // methods are kept per vtable (a single global would send a keyboard call to a controller's method and crash).
-    struct DIVtblOrig { void** vtbl; DIGetDeviceState_t state; DIGetDeviceData_t data; };
-    DIVtblOrig gDIOrig[16] = {};
-    SRWLOCK gDILock = SRWLOCK_INIT;
-    DIVtblOrig* FindDIOrig(void* dev)
+    // The DirectInput methods are hooked in their code (MinHook), not in the vtables: other plugins (FusionFix 5.2's
+    // overlay) hook the method a vtable entry points to and look their trampoline up by that entry, so a changed vtable
+    // entry sent them back into their own hook (endless recursion, a crash at start). Each distinct method gets its own
+    // hook instance with its own original.
+    template<int N> struct DIHooks
     {
-        void** vtbl = *(void***)dev;
-        AcquireSRWLockShared(&gDILock);
-        DIVtblOrig* r = nullptr;
-        for (auto& e : gDIOrig) if (e.vtbl == vtbl) { r = &e; break; }
-        ReleaseSRWLockShared(&gDILock);
-        return r;
+        static inline DICreateDevice_t createOrig = nullptr;
+        static inline DIGetDeviceState_t stateOrig = nullptr;
+        static inline DIGetDeviceData_t dataOrig = nullptr;
+        static HRESULT WINAPI Create(void* di, REFGUID g, void** out, LPUNKNOWN u);
+        static HRESULT WINAPI State(void* dev, DWORD cb, LPVOID data)
+        {
+            HRESULT hr = stateOrig(dev, cb, data);
+            if (cfg.keyboardFix && data && !GameInForeground())
+            {
+                memset(data, 0, cb);
+                return DI_OK;
+            }
+            return hr;
+        }
+        static HRESULT WINAPI Data(void* dev, DWORD cb, LPDIDEVICEOBJECTDATA data, LPDWORD inout, DWORD fl)
+        {
+            HRESULT hr = dataOrig(dev, cb, data, inout, fl);
+            if (cfg.keyboardFix && inout && !GameInForeground() && !(fl & DIGDD_PEEK))
+            {
+                *inout = 0;
+                return DI_OK;
+            }
+            return hr;
+        }
+    };
+
+    constexpr int kDISlots = 8;
+    SRWLOCK gDILock = SRWLOCK_INIT;
+    void* gDICreateTargets[kDISlots] = {};
+    void* gDIStateTargets[kDISlots] = {};
+    void* gDIDataTargets[kDISlots] = {};
+
+    template<int... N> void* PickCreate(int i, std::integer_sequence<int, N...>) { void* t[] = { (void*)&DIHooks<N>::Create... }; return t[i]; }
+    template<int... N> void* PickState(int i, std::integer_sequence<int, N...>) { void* t[] = { (void*)&DIHooks<N>::State... }; return t[i]; }
+    template<int... N> void* PickData(int i, std::integer_sequence<int, N...>) { void* t[] = { (void*)&DIHooks<N>::Data... }; return t[i]; }
+    template<int... N> void** PickCreateOrig(int i, std::integer_sequence<int, N...>) { void** t[] = { (void**)&DIHooks<N>::createOrig... }; return t[i]; }
+    template<int... N> void** PickStateOrig(int i, std::integer_sequence<int, N...>) { void** t[] = { (void**)&DIHooks<N>::stateOrig... }; return t[i]; }
+    template<int... N> void** PickDataOrig(int i, std::integer_sequence<int, N...>) { void** t[] = { (void**)&DIHooks<N>::dataOrig... }; return t[i]; }
+    using DISeq = std::make_integer_sequence<int, kDISlots>;
+
+    // hooks the method once; returns false when the table is full or MinHook refuses
+    bool HookDIMethod(void* target, void** targets, void* (*pickHook)(int), void** (*pickOrig)(int), const char* what)
+    {
+        if (!target) return false;
+        AcquireSRWLockExclusive(&gDILock);
+        int slot = -1;
+        for (int i = 0; i < kDISlots; i++)
+        {
+            if (targets[i] == target) { ReleaseSRWLockExclusive(&gDILock); return true; }
+            if (!targets[i] && slot < 0) slot = i;
+        }
+        bool ok = false;
+        if (slot >= 0)
+        {
+            MH_STATUS st = MH_CreateHook(target, pickHook(slot), pickOrig(slot));
+            if (st == MH_OK) st = MH_EnableHook(target);
+            ok = st == MH_OK;
+            if (ok) targets[slot] = target;
+            Log("DirectInput %s %p: %s", what, target, ok ? "hooked" : "hook failed");
+        }
+        ReleaseSRWLockExclusive(&gDILock);
+        return ok;
     }
 
-    HRESULT WINAPI hkGetDeviceState(void* dev, DWORD cb, LPVOID data)
-    {
-        DIVtblOrig* e = FindDIOrig(dev);
-        if (!e || !e->state) return DIERR_GENERIC;
-        HRESULT hr = e->state(dev, cb, data);
-        if (cfg.keyboardFix && data && !GameInForeground())
-        {
-            memset(data, 0, cb);
-            return DI_OK;
-        }
-        return hr;
-    }
-    HRESULT WINAPI hkGetDeviceData(void* dev, DWORD cb, LPDIDEVICEOBJECTDATA data, LPDWORD inout, DWORD fl)
-    {
-        DIVtblOrig* e = FindDIOrig(dev);
-        if (!e || !e->data) return DIERR_GENERIC;
-        HRESULT hr = e->data(dev, cb, data, inout, fl);
-        if (cfg.keyboardFix && inout && !GameInForeground() && !(fl & DIGDD_PEEK))
-        {
-            *inout = 0;
-            return DI_OK;
-        }
-        return hr;
-    }
-    void PatchDIDevice(void* dev, bool)
+    void HookDIDevice(void* dev)
     {
         // IDirectInputDevice8: 9 = GetDeviceState, 10 = GetDeviceData
         void** vtbl = *(void***)dev;
-        AcquireSRWLockExclusive(&gDILock);
-        bool known = false, added = false;
-        for (auto& e : gDIOrig) if (e.vtbl == vtbl) { known = true; break; }
-        if (!known)
-            for (auto& e : gDIOrig)
-                if (!e.vtbl)
-                {
-                    // record the originals before the vtable points at the hooks
-                    e.state = (DIGetDeviceState_t)vtbl[9];
-                    e.data = (DIGetDeviceData_t)vtbl[10];
-                    e.vtbl = vtbl;
-                    added = true;
-                    break;
-                }
-        ReleaseSRWLockExclusive(&gDILock);
-        if (added)
-        {
-            PatchVtbl(dev, 9, (void*)&hkGetDeviceState);
-            PatchVtbl(dev, 10, (void*)&hkGetDeviceData);
-            Log("DirectInput device class %p hooked", (void*)vtbl);
-        }
+        HookDIMethod(vtbl[9], gDIStateTargets, [](int i) { return PickState(i, DISeq{}); }, [](int i) { return PickStateOrig(i, DISeq{}); }, "GetDeviceState");
+        HookDIMethod(vtbl[10], gDIDataTargets, [](int i) { return PickData(i, DISeq{}); }, [](int i) { return PickDataOrig(i, DISeq{}); }, "GetDeviceData");
     }
-    HRESULT WINAPI hkDICreateDeviceA(void* di, REFGUID g, void** out, LPUNKNOWN u)
+
+    template<int N> HRESULT WINAPI DIHooks<N>::Create(void* di, REFGUID g, void** out, LPUNKNOWN u)
     {
-        HRESULT hr = oDICreateDeviceA(di, g, out, u);
-        if (SUCCEEDED(hr) && out && *out) { PatchDIDevice(*out, false); static int n = 0; if (n++ < 6) Log("DirectInput device created (A): input blocked while the game is in the background"); }
+        HRESULT hr = createOrig(di, g, out, u);
+        if (SUCCEEDED(hr) && out && *out) HookDIDevice(*out);
         return hr;
     }
-    HRESULT WINAPI hkDICreateDeviceW(void* di, REFGUID g, void** out, LPUNKNOWN u)
-    {
-        HRESULT hr = oDICreateDeviceW(di, g, out, u);
-        if (SUCCEEDED(hr) && out && *out) { PatchDIDevice(*out, true); static int n = 0; if (n++ < 6) Log("DirectInput device created (W): input blocked while the game is in the background"); }
-        return hr;
-    }
+
     HRESULT WINAPI hkDI8Create(HINSTANCE inst, DWORD ver, REFIID riid, LPVOID* out, LPUNKNOWN u)
     {
         HRESULT hr = oDI8Create(inst, ver, riid, out, u);
@@ -467,9 +475,8 @@ namespace
         {
             bool wide = IsEqualIID(riid, IID_IDirectInput8W) != 0;
             // IDirectInput8: 3 = CreateDevice
-            if (wide) { if (auto o = PatchVtbl(*out, 3, (void*)&hkDICreateDeviceW)) oDICreateDeviceW = (DICreateDevice_t)o; }
-            else { if (auto o = PatchVtbl(*out, 3, (void*)&hkDICreateDeviceA)) oDICreateDeviceA = (DICreateDevice_t)o; }
-            Log("DirectInput8Create (%s)", wide ? "W" : "A");
+            void** vtbl = *(void***)*out;
+            HookDIMethod(vtbl[3], gDICreateTargets, [](int i) { return PickCreate(i, DISeq{}); }, [](int i) { return PickCreateOrig(i, DISeq{}); }, wide ? "CreateDevice (W)" : "CreateDevice (A)");
         }
         return hr;
     }
