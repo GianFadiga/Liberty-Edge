@@ -28,7 +28,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.15"
+#define LE_VERSION "1.16"
 
 namespace
 {
@@ -961,6 +961,21 @@ namespace
 
     void HookD3D(IDirect3D9* d3d)
     {
+        // With DXVK loaded (FusionFix on Vulkan) the game's object is DXVK's; system objects that FusionFix makes for
+        // itself (at start, before the game's) must not take the hooks, or the game's object is left without them.
+        if (d3d)
+            if (HMODULE vk = GetModuleHandleW(L"vulkan.dll"))
+            {
+                HMODULE owner = nullptr;
+                void* code = (*(void***)d3d)[16];
+                GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)code, &owner);
+                if (owner != vk)
+                {
+                    static int n = 0;
+                    if (n++ < 4) Log("Direct3D object of another implementation (not DXVK): left alone");
+                    return;
+                }
+            }
         if (d3d)
         {
             HookMethod(d3d, 6, (void*)&hkGetAdapterModeCount, (void**)&oGetAdapterModeCount, gTgtModeCount, "IDirect3D9::GetAdapterModeCount");
