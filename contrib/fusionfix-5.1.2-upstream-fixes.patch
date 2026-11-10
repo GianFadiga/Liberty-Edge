@@ -1,9 +1,39 @@
+diff --git a/source/classext.ixx b/source/classext.ixx
+index 58faa6f..adaa675 100644
+--- a/source/classext.ixx
++++ b/source/classext.ixx
+@@ -15,6 +15,7 @@ export class CPedIntelligenceExt
+ {
+ public:
+     float m_fTimeStepAccumulator = 0.0f;
++    float m_fPinnedDownDecay = 0.0f; // the part of a point not taken off the pinned-down amount yet
+ };
+ 
+ export class CCamFollowVehicleExt
 diff --git a/source/frameratevigilante.ixx b/source/frameratevigilante.ixx
-index 8cd11c2..da74d20 100644
+index 8cd11c2..ffa8b40 100644
 --- a/source/frameratevigilante.ixx
 +++ b/source/frameratevigilante.ixx
-@@ -129,6 +129,53 @@ namespace CPedIntelligence
+@@ -127,8 +127,71 @@ namespace CPedIntelligence
+             return shProcessStaticCounter.unsafe_fastcall(_this, edx);
+         }
      }
++
++    // How pinned down a ped is (0-100, from being shot at) goes down by fTimeStep * 30 each frame, cut to a whole
++    // number. Below 1/30 s per frame that's 0: above 30 fps the amount never goes down, and peds that were shot at
++    // stay ducked in cover for good without peeking, firing or advancing. Taken off in whole points as they add up.
++    SafetyHookInline shDecreaseAmountPinnedDown = {};
++    void __fastcall DecreaseAmountPinnedDown(void* _this, void* edx, float fAmount)
++    {
++        auto PIExt = GetPedIntelligenceExt((uintptr_t)_this);
++        if (!PIExt)
++            return shDecreaseAmountPinnedDown.unsafe_fastcall(_this, edx, fAmount);
++
++        PIExt->m_fPinnedDownDecay += fAmount;
++        auto nPoints = (int)PIExt->m_fPinnedDownDecay;
++        PIExt->m_fPinnedDownDecay -= (float)nPoints;
++        return shDecreaseAmountPinnedDown.unsafe_fastcall(_this, edx, (float)nPoints);
++    }
  }
  
 +// CTimer's millisecond clocks (the game's: GET_GAME_TIMER and the timers that use it, the camera's, the screen fades'
@@ -56,7 +86,7 @@ index 8cd11c2..da74d20 100644
  namespace CHandShaker
  {
      // Original function, for reference
-@@ -822,6 +869,57 @@ public:
+@@ -822,6 +885,64 @@ public:
                  CPedIntelligence::shProcessStaticCounter = safetyhook::create_inline(pattern.get_first(0), CPedIntelligence::ProcessStaticCounter);
              }
  
@@ -109,6 +139,13 @@ index 8cd11c2..da74d20 100644
 +                    }
 +                    regs.eax += MillisecondClocks::nScriptCarry;
 +                });
++            }
++
++            // Fix peds staying pinned down (cops stuck in cover)
++            {
++                auto pattern = hook::pattern("F3 0F 2C 44 24 04 0F BE 91 ? ? ? ? 0F BE C0 2B D0");
++                if (!pattern.empty())
++                    CPedIntelligence::shDecreaseAmountPinnedDown = safetyhook::create_inline(pattern.get_first(0), CPedIntelligence::DecreaseAmountPinnedDown);
 +            }
 +
              // Fix stalls when trying to climb ladders

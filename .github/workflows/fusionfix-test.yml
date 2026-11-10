@@ -57,6 +57,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path "pkg/$m" | Out-Null
           Copy-Item "fusionfix/data/$m/frontend_menus.xml" "pkg/$m/"
         }
+        # Upstream fix after 5.1.2 (#1636, fac271e): Weekend at Florian's (ray5) scripted cutscene at high fps. A folder
+        # named script.img inside update is merged by FusionFix into the game's common/data/cdimages/script.img.
+        New-Item -ItemType Directory -Force -Path pkg/update/common/data/cdimages/script.img | Out-Null
+        Invoke-WebRequest "https://raw.githubusercontent.com/ThirteenAG/GTAIV.EFLC.FusionFix/fac271ead49fe5284ff7df53b5adcdb963936a86/data/update/GTAIV.EFLC.FusionFix/GTAIV.FusionFix/ray5.sco" -OutFile pkg/update/common/data/cdimages/script.img/ray5.sco
+        if ((Get-Item pkg/update/common/data/cdimages/script.img/ray5.sco).Length -ne 66074) { throw "ray5.sco size" }
         Compress-Archive -Path pkg/* -DestinationPath FusionFix-5.1.2-turnindicators-test.zip
         Get-FileHash pkg/plugins/GTAIV.EFLC.FusionFix.asi | Format-List
 
@@ -69,4 +74,4 @@ jobs:
         gh release delete fusionfix-turnindicators-test --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
         gh release create fusionfix-turnindicators-test FusionFix-5.1.2-turnindicators-test.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
           --title "FusionFix 5.1.2 + turn indicators and headlight cycle (test)" \
-          --notes "Test build of FusionFix 5.1.2 with contrib/fusionfix-5.1.2-*.patch: turn indicators and headlight cycle (proposed upstream) and a backport of upstream's millisecond clock fix (master f007d51: timers running slow at 60+ fps caused infinite loading screens around cutscenes). Only for testing."
+          --notes "Test build of FusionFix 5.1.2 with contrib/fusionfix-5.1.2-*.patch: turn indicators and headlight cycle (proposed upstream) and backports of upstream fixes made after 5.1.2: millisecond clocks (f007d51, infinite loading screens around cutscenes at 60+ fps), peds stuck pinned down in cover above 30 fps, Weekend at Florian's scripted cutscene at high fps (#1636). Only for testing."
