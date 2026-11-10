@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.12"
+#define LE_VERSION "1.13"
 
 namespace
 {
@@ -205,8 +205,11 @@ namespace
         return cx > mon.right - mon.left || cy > mon.bottom - mon.top;
     }
 
+    void TryHookVulkan();
+
     BOOL WINAPI hkMoveWindow(HWND w, int x, int y, int cx, int cy, BOOL repaint)
     {
+        TryHookVulkan();
         RECT m;
         if (ShouldFit(w, cx, cy, m))
             return oMoveWindow(w, m.left, m.top, m.right - m.left, m.bottom - m.top, repaint);
@@ -215,6 +218,7 @@ namespace
 
     BOOL WINAPI hkSetWindowPos(HWND w, HWND after, int x, int y, int cx, int cy, UINT flags)
     {
+        TryHookVulkan();
         RECT m;
         if (!(flags & SWP_NOSIZE) && ShouldFit(w, cx, cy, m))
             return oSetWindowPos(w, after, m.left, m.top, m.right - m.left, m.bottom - m.top, flags & ~SWP_NOMOVE);
@@ -969,17 +973,6 @@ namespace
         Log("vulkan.dll Direct3DCreate9: %s", s == MH_OK ? "hooked" : "hook failed");
     }
 
-    // FusionFix looks DXVK's Direct3DCreate9 up with GetProcAddress when the game creates its Direct3D object (in WinMain,
-    // outside the loader lock): the export is hooked right there, before the address is handed back.
-    using GetProcAddress_t = FARPROC(WINAPI*)(HMODULE, LPCSTR);
-    GetProcAddress_t oGetProcAddress = nullptr;
-    FARPROC WINAPI hkGetProcAddress(HMODULE m, LPCSTR name)
-    {
-        if (!gVkHooked && HIWORD((DWORD_PTR)name) && name[0] == 'D' && !strcmp(name, "Direct3DCreate9") && m && m == GetModuleHandleW(L"vulkan.dll"))
-            TryHookVulkan();
-        return oGetProcAddress(m, name);
-    }
-
     void Install(HMODULE self)
     {
         LoadSettings(self);
@@ -1002,8 +995,13 @@ namespace
         if (!GetModuleHandleW(L"dinput8.dll")) LoadLibraryW(L"dinput8.dll");
         s = MH_CreateHookApi(L"dinput8.dll", "DirectInput8Create", (void*)&hkDI8Create, (void**)&oDI8Create);
         if (s != MH_OK) Log("hook DirectInput8Create failed (%d)", (int)s);
-        MH_CreateHookApi(L"kernelbase.dll", "GetProcAddress", (void*)&hkGetProcAddress, (void**)&oGetProcAddress);
         MH_EnableHook(MH_ALL_HOOKS);
+        // FusionFix 5.2+ loads vulkan.dll in its own init, before this plugin (plugins load in name order); if it isn't
+        // there yet, the window calls below (the game creates its window before its Direct3D object) try again.
+        // No system function is hooked for this: the game's protection checks those (1.12 hooked GetProcAddress and the
+        // game crashed at start).
+        Log("vulkan.dll %s at start", GetModuleHandleW(L"vulkan.dll") ? "loaded" : "not loaded");
+        TryHookVulkan();
     }
 }
 
