@@ -69,4 +69,4 @@ jobs:
         gh release delete fusionfix-turnindicators-test --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
         gh release create fusionfix-turnindicators-test FusionFix-5.1.2-turnindicators-test.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
           --title "FusionFix 5.1.2 + turn indicators and headlight cycle (test)" \
-          --notes "Test build of FusionFix 5.1.2 with contrib/fusionfix-5.1.2-turn-indicators-auto-with-manual.patch. Only for testing; the change is proposed upstream."
+          --notes "Test build of FusionFix 5.1.2 with contrib/fusionfix-5.1.2-*.patch: turn indicators and headlight cycle (proposed upstream) and a backport of upstream's millisecond clock fix (master f007d51: timers running slow at 60+ fps caused infinite loading screens around cutscenes). Only for testing."
