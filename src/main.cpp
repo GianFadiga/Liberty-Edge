@@ -27,7 +27,7 @@
 #include "MinHook.h"
 #include "downsample_ps.h" // g_main: compiled src/downsample.hlsl (ps_3_0)
 
-#define LE_VERSION "1.10"
+#define LE_VERSION "1.12"
 
 namespace
 {
@@ -927,9 +927,8 @@ namespace
     using Direct3DCreate9_t = IDirect3D9*(WINAPI*)(UINT);
     Direct3DCreate9_t oDirect3DCreate9 = nullptr;
 
-    IDirect3D9* WINAPI hkDirect3DCreate9(UINT sdk)
+    void HookD3D(IDirect3D9* d3d)
     {
-        IDirect3D9* d3d = oDirect3DCreate9(sdk);
         if (d3d)
         {
             if (auto o = PatchVtbl(d3d, 6, (void*)&hkGetAdapterModeCount)) oGetAdapterModeCount = (GetAdapterModeCount_t)o;
@@ -938,7 +937,47 @@ namespace
             static bool once = false;
             if (!once) { once = true; Log("Direct3DCreate9: hooks installed"); }
         }
+    }
+
+    IDirect3D9* WINAPI hkDirect3DCreate9(UINT sdk)
+    {
+        IDirect3D9* d3d = oDirect3DCreate9(sdk);
+        HookD3D(d3d);
         return d3d;
+    }
+
+    // FusionFix 5.2+ picks the graphics API itself: it points the game's d3d9.dll imports at its own functions, which
+    // call DXVK's Direct3DCreate9 (vulkan.dll next to the exe) directly, so the d3d9.dll hook above never runs. DXVK's
+    // export is hooked as well, as soon as vulkan.dll is loaded. With older FusionFix both hooks see the same object
+    // (its d3d9.dll proxy calls DXVK), and the second patch finds the vtable patched already.
+    Direct3DCreate9_t oVkDirect3DCreate9 = nullptr;
+    IDirect3D9* WINAPI hkVkDirect3DCreate9(UINT sdk)
+    {
+        IDirect3D9* d3d = oVkDirect3DCreate9(sdk);
+        HookD3D(d3d);
+        return d3d;
+    }
+
+    volatile LONG gVkHooked = 0;
+    void TryHookVulkan()
+    {
+        if (gVkHooked || !GetModuleHandleW(L"vulkan.dll")) return;
+        if (InterlockedExchange(&gVkHooked, 1)) return;
+        void* target = nullptr;
+        MH_STATUS s = MH_CreateHookApiEx(L"vulkan.dll", "Direct3DCreate9", (void*)&hkVkDirect3DCreate9, (void**)&oVkDirect3DCreate9, &target);
+        if (s == MH_OK) s = MH_EnableHook(target);
+        Log("vulkan.dll Direct3DCreate9: %s", s == MH_OK ? "hooked" : "hook failed");
+    }
+
+    // FusionFix looks DXVK's Direct3DCreate9 up with GetProcAddress when the game creates its Direct3D object (in WinMain,
+    // outside the loader lock): the export is hooked right there, before the address is handed back.
+    using GetProcAddress_t = FARPROC(WINAPI*)(HMODULE, LPCSTR);
+    GetProcAddress_t oGetProcAddress = nullptr;
+    FARPROC WINAPI hkGetProcAddress(HMODULE m, LPCSTR name)
+    {
+        if (!gVkHooked && HIWORD((DWORD_PTR)name) && name[0] == 'D' && !strcmp(name, "Direct3DCreate9") && m && m == GetModuleHandleW(L"vulkan.dll"))
+            TryHookVulkan();
+        return oGetProcAddress(m, name);
     }
 
     void Install(HMODULE self)
@@ -963,6 +1002,7 @@ namespace
         if (!GetModuleHandleW(L"dinput8.dll")) LoadLibraryW(L"dinput8.dll");
         s = MH_CreateHookApi(L"dinput8.dll", "DirectInput8Create", (void*)&hkDI8Create, (void**)&oDI8Create);
         if (s != MH_OK) Log("hook DirectInput8Create failed (%d)", (int)s);
+        MH_CreateHookApi(L"kernelbase.dll", "GetProcAddress", (void*)&hkGetProcAddress, (void**)&oGetProcAddress);
         MH_EnableHook(MH_ALL_HOOKS);
     }
 }
