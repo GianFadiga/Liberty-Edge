@@ -1,0 +1,53 @@
+# FusionFix development build (upstream master, with everything made after 5.1.2) plus this project's contributions
+# (turn indicators, GPS blinkers, headlight cycle), from the branch liberty-edge-test of the fork
+# GianFadiga/GTAIV.EFLC.FusionFix. The same steps as upstream's msvc_x86.yml, without the hub and the signing (the
+# package is built without FusionFixHub.exe, as upstream's own fork builds are). For testing only.
+name: FusionFix dev test build
+on:
+  push:
+    paths: [ '.github/workflows/fusionfix-dev-test.yml' ]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  FF_REPO: GianFadiga/GTAIV.EFLC.FusionFix
+  FF_REF: liberty-edge-test
+  TAG: fusionfix-dev-test
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ env.FF_REPO }}
+        ref: ${{ env.FF_REF }}
+        submodules: recursive
+
+    - uses: microsoft/setup-msbuild@main
+
+    - name: Configure
+      run: ./premake5 vs2026 --with-version=5.2.0.100
+
+    - name: Compile shaders
+      run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/compileshaders.ps1 -Force -Verify
+
+    - name: Build
+      run: msbuild -m build/GTAIV.EFLC.FusionFix.slnx /property:Configuration=Release /property:Platform=Win32
+
+    - name: Pack
+      env:
+        CI: "true"
+      run: ./release.bat
+
+    - name: Publish
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        test -s GTAIV.EFLC.FusionFix.zip
+        sha=$(git rev-parse HEAD)
+        mv GTAIV.EFLC.FusionFix.zip FusionFix-dev-libertyedge-test.zip
+        gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+        gh release create "$TAG" FusionFix-dev-libertyedge-test.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+          --title "FusionFix development build + turn indicators and headlight cycle (test)" \
+          --notes "FusionFix upstream master with this project's contributions merged: ${FF_REPO}@${sha} (branch ${FF_REF}). Development build, for testing and bug reports only."
